@@ -4,7 +4,7 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 setup(name='aestetik',
-      version='0.0.1',
+      version='0.0.2',
       description='AESTETIK: AutoEncoder for Spatial Transcriptomics Expression with Topology and Image Knowledge',
       author='KalinNonchev',
       author_email='boo@foo.com',
