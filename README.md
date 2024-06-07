@@ -45,7 +45,11 @@ conda install conda-forge::pyvips
 
 ## Getting Started
 
-Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to get started with AESTETIK. [Here](example/gettingStartedWithAESTETIKwithSimulatedData.ipynb), another example notebook with [simulated spatial transcriptomics data](https://github.com/ratschlab/simulate_spatial_transcriptomics_tool).
+Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to get started with AESTETIK.
+
+![aestetik](/figures/maynard_human_brain_analysis_151676_Transcriptomics_Morphology_AESTETIK.png)
+
+[Here](example/gettingStartedWithAESTETIKwithSimulatedData.ipynb), another example notebook with [simulated spatial transcriptomics data](https://github.com/ratschlab/simulate_spatial_transcriptomics_tool).
 
 ![aestetik](/figures/AESTETIK_clustering.png)
 
