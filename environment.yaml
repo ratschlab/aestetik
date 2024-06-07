@@ -1,0 +1,24 @@
+name: aestetik
+
+channels:
+  - conda-forge
+  - pytorch
+
+dependencies:
+  - python==3.9
+  - pip
+  - pytorch
+  - numpy
+  - pandas
+  - scipy
+  - anndata
+  - scanpy
+  - squidpy
+  - matplotlib
+  - torchvision
+  - pyvips
+  - scikit-learn
+  - pyvips
+  
+  - pip:
+      - plotnine

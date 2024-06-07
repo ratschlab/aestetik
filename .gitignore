@@ -1,0 +1,9 @@
+.snakemake/
+*.log
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+aestetik.egg-info
+build
+dist
+*/__pycache__/*
+*__pycache__*
