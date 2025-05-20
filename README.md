@@ -7,7 +7,11 @@ This model is part of the paper "Representation learning for multi-modal spatial
 
 The preprint is available [here](https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1).
 
-### Do you want to gain a multi-modal understanding of key biological processes through spatial transcriptomics?
+## News
+
+  - [08.2024] AESTETIK secured the 1st place at the Mammoth International Contest On Omics Sciences in Europe 2024 organized by China National GeneBank, BGI Genomics, MGI and CODATA [link](https://micos.cngb.org/europe/index.html).
+
+## Do you want to gain a multi-modal understanding of key biological processes through spatial transcriptomics?
 
 We introduce AESTETIK, a convolutional autoencoder model. It jointly integrates transcriptomics and morphology information, on a spot level, and topology, on a neighborhood level, to learn accurate spot representations that capture biological complexity.
 
