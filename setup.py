@@ -12,7 +12,8 @@ setup(name='aestetik',
       long_description_content_type='text/markdown',
       long_description=open('README.md').read(),
       url="https://github.com/ratschlab/aestetik",
-      packages=find_packages(),  # find packages
+      packages=find_packages(where='src'),    # Look in src/
+      package_dir={'': 'src'},                # Root is src/
       include_package_data=True,
       # external packages as dependencies,
       install_requires=requirements,
