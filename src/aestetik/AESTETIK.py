@@ -18,6 +18,8 @@ from .utils.utils_grid import *
 from .dataloader import *
 from .model import *
 
+from aestetik.utils.utils_data import prepare_input_for_model as prepare_input
+
 
 class AESTETIK:
     def __init__(
@@ -186,64 +188,24 @@ class AESTETIK:
         for item in attr.items():
             print(*item, sep=": ")
 
-    def prepare_input_for_model(self):
+    def prepare_input_for_model(self): 
         """
         Prepare the input for training the model.
         1. Clustering raw input
         2. Grid building
         """
-
-        logging.info(f"Clustering raw input with {self.clustering_method}...")
-
-        clustering(
-            self.adata,
-            num_cluster=self.nCluster,
-            used_obsm=self.used_obsm_transcriptomics,
-            method=self.clustering_method,
-            n_neighbors=self.n_neighbors,
-            refine_cluster=0)
-
-        clustering(
-            self.adata,
-            num_cluster=self.nCluster,
-            used_obsm=self.used_obsm_morphology,
-            method=self.clustering_method,
-            n_neighbors=self.n_neighbors,
-            refine_cluster=0)
-
-        self._calibrate_transcriptomics_morphology_ratio()
-
-        self.adata.obsm[self.used_obsm_combined] = np.concatenate(
-            (self.adata.obsm[self.used_obsm_transcriptomics], self.adata.obsm[self.used_obsm_morphology]), axis=1)
-
-        logging.info(f"Computing transcriptomics grid...")
-        X_st_grid_transcriptomics = create_st_grid(
-            self.adata, used_obsm=self.used_obsm_transcriptomics, window_size=self.window_size, cpu_count=self.n_jobs)
-        logging.info(f"Computing morphology grid...")
-        X_st_grid_morphology = create_st_grid(
-            self.adata, used_obsm=self.used_obsm_morphology, window_size=self.window_size, cpu_count=self.n_jobs)
-
-        self.adata.obsm["X_st_grid"] = np.concatenate(
-            (X_st_grid_transcriptomics, X_st_grid_morphology), axis=1)
-
-    def _calibrate_transcriptomics_morphology_ratio(self):
-        self.transcriptomics_weight = (self.total_weight - self.morphology_weight)
-
-        if self.transcriptomics_weight > 0 and self.adata.obs[f"{self.used_obsm_transcriptomics}_cluster"].unique(
-        ).size == 1:
-            logging.info(
-                f"""obsm {
-                    self.used_obsm_transcriptomics} resulted in 1 cluster instead of {
-                    self.nCluster}. transcriptomics_weight will be set to 0.""")
-            self.transcriptomics_weight = 0
-
-        if self.morphology_weight > 0 and self.adata.obs[f"{self.used_obsm_morphology}_cluster"].unique().size == 1:
-            logging.info(
-                f"""obsm {
-                    self.used_obsm_morphology} resulted in 1 cluster instead of {
-                    self.nCluster}. morphology_weight will be set to 0.""")
-            self.morphology_weight = 0
-
+        self.transcriptomics_weight, self.morphology_weight = prepare_input(adata=self.adata,
+                                                                                      nCluster=self.nCluster,
+                                                                                      used_obsm_transcriptomics=self.used_obsm_transcriptomics,
+                                                                                      used_obsm_morphology=self.used_obsm_morphology,
+                                                                                      used_obsm_combined=self.used_obsm_combined,
+                                                                                      clustering_method=self.clustering_method,
+                                                                                      n_neighbors=self.n_neighbors,
+                                                                                      window_size=self.window_size,
+                                                                                      n_jobs=self.n_jobs,
+                                                                                      total_weight=self.total_weight,
+                                                                                      morphology_weight=self.morphology_weight)
+    
     def _init_data_loader(self):
 
         self.data_loader = CustomDataset(
