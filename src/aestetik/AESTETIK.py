@@ -227,7 +227,6 @@ class AESTETIK:
                         latent_dim=self.latent_dim,
                         kernel_size=self.kernel_size,
                         p=self.p,
-                        device=self.device,
                         n_ensemble_encoder=self.n_ensemble_encoder,
                         n_ensemble_decoder=self.n_ensemble_decoder)
 
