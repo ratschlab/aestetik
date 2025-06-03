@@ -57,11 +57,11 @@ def prepare_input_for_model(
         adata.obsm[used_obsm_combined] = np.concatenate(
                 (adata.obsm[used_obsm_transcriptomics], adata.obsm[used_obsm_morphology]), axis=1)
         
-        logging.info(f"Computing transcriptomics grid...")
+        logging.info("Computing transcriptomics grid...")
         X_st_grid_transcriptomics = create_st_grid(
             adata, used_obsm=used_obsm_transcriptomics, window_size=window_size, cpu_count=n_jobs)
         
-        logging.info(f"Computing morphology grid...")
+        logging.info("Computing morphology grid...")
         X_st_grid_morphology = create_st_grid(
             adata, used_obsm=used_obsm_morphology, window_size=window_size, cpu_count=n_jobs)
 
@@ -72,11 +72,11 @@ def prepare_input_for_model(
 
 def calibrate_transcriptomics_morphology_ratio(
     adata: anndata.AnnData, 
-    nCluster: int, 
+    nCluster: Union[int, float], 
     used_obsm_transcriptomics: str, 
     used_obsm_morphology: str, 
     total_weight: float, 
-    morphology_weight: float) -> Tuple[int, int]:
+    morphology_weight: float) -> Tuple[float, float]:
     transcriptomics_weight = total_weight - morphology_weight
 
     if (transcriptomics_weight > 0 and
