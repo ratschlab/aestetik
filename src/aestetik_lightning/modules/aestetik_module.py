@@ -103,15 +103,12 @@ class LitAESTETIKModel(L.LightningModule):
                      batch_idx: int,
                      dataloader_idx: Optional[int] = None,
                      ) -> Tensor:
-        if self.predict_params["num_repeats"] is None:
-            raise TypeError(f"self.predict_params[\"num_repeats\"] must be an integer, got {type(self.predict)} instead.")    
 
         self.model.train()
         batch_spots = batch[0]
         batch_latent_space = []
 
-        # self.model.load_state_dict(torch.load("AE_original_weights.pth"))
-        for i in range(self.predict_params["num_repeats"]):
+        for _ in range(self.predict_params["num_repeats"]):
             out = self.model.encoder(batch_spots)
             batch_latent_space.append(out)
 
