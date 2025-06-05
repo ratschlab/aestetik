@@ -17,17 +17,13 @@ class LitAESTETIKModel(L.LightningModule):
                  rec_alpha: float,
                  triplet_alpha: float,
                  kernel_size: int,
-                 latent_dim: int, 
+                 latent_dim: int,
                  c_hid: int,
                  lr: float,
                  p: float,
-                 epochs: int,
                  n_ensemble_encoder: int,
                  n_ensemble_decoder: int,
-                 save_emb: str,
-                 weight_decay: float,
-                 spot_diameter_fullres: int,
-                 refine_cluster: bool
+                 weight_decay: float
                  ):
         super().__init__()
         self.datamodule = datamodule
@@ -52,7 +48,6 @@ class LitAESTETIKModel(L.LightningModule):
         self.multi_triplet_loss = self.datamodule.loss_regularization_params["multi_triplet_loss"]
         self.obsm_transcriptomics_dim = self.datamodule.adata.obsm[self.datamodule.data_cluster_params["used_obsm_transcriptomics"]].shape[1]
         self.hparams.kernel_size = self.hparams.kernel_size if self.hparams.kernel_size < self.datamodule.data_cluster_params["window_size"] else max(1, self.datamodule.data_cluster_params["window_size"] - 1)
-        self.hparams.refine_cluster = self.hparams.refine_cluster and self.datamodule.data_cluster_params["n_neighbors"] > 1
         self.n_repeats = self.datamodule.loss_regularization_params["n_repeats"]
 
     def configure_model(self):
@@ -103,6 +98,8 @@ class LitAESTETIKModel(L.LightningModule):
                      batch_idx: int,
                      dataloader_idx: Optional[int] = None,
                      ) -> Tensor:
+        if self.predict_params["num_repeats"] is None:
+            raise TypeError(f"self.predict_params[\"num_repeats\"] must be an integer, got {type(self.predict)} instead.") 
 
         self.model.train()
         batch_spots = batch[0]
