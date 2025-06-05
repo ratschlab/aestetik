@@ -203,11 +203,7 @@ class LitAESTETIK:
                                                     rec_alpha=self.loss_regularization_params["rec_alpha"],
                                                     triplet_alpha=self.loss_regularization_params["triplet_alpha"],
                                                     lr=self.training_params["lr"],
-                                                    epochs=self.training_params["epochs"],
-                                                    save_emb=self.data_cluster_params["save_emb"],
-                                                    weight_decay=self.training_params["weight_decay"],
-                                                    spot_diameter_fullres=self.data_cluster_params["spot_diameter_fullres"],
-                                                    refine_cluster=self.data_cluster_params["refine_cluster"],
+                                                    weight_decay=self.training_params["weight_decay"]
                                                     **self.model_architecture_params)
         self.trainer = Trainer(max_epochs=self.training_params["epochs"], 
                                min_epochs=self.training_params["epochs"])

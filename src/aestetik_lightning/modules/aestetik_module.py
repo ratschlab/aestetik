@@ -19,10 +19,10 @@ class LitAESTETIKModel(L.LightningModule):
                  kernel_size: int,
                  latent_dim: int,
                  c_hid: int,
-                 lr: float,
                  p: float,
                  n_ensemble_encoder: int,
                  n_ensemble_decoder: int,
+                 lr: float,
                  weight_decay: float
                  ):
         super().__init__()
