@@ -58,7 +58,8 @@ class AE(nn.Module):
             kernel_size,
             p,
             n_ensemble_encoder=2,
-            n_ensemble_decoder=1):
+            n_ensemble_decoder=1,
+            **kwargs):
         super().__init__()
 
         conv_out_1 = (morphology_dim - kernel_size) + 1
