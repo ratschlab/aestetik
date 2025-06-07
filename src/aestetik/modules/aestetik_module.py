@@ -3,15 +3,15 @@ import torch
 import logging
 from torch import nn, Tensor
 
-from aestetik.model import AE
-from aestetik_lightning.data_modules.data_module import AESTETIKDataModule
+from aestetik.models.model import AE
+from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.loss_function import compute_loss
 
 from typing import Tuple
 from typing import List 
 from typing import Optional
 
-class LitAESTETIKModel(L.LightningModule):
+class AESTETIKModel(L.LightningModule):
     def __init__(self,
                  datamodule: AESTETIKDataModule,
                  grid_params: dict,

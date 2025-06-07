@@ -1,31 +1,25 @@
-from sklearn.neighbors import NearestCentroid
-from scipy.spatial.distance import cdist
-from typing_extensions import Literal
-from typing import Union, Optional
-from tqdm import tqdm
-import multiprocessing
-from torch import nn
-import numpy as np
-import logging
 import anndata
+import numpy as np
 import torch
+import logging
+import multiprocessing
+from lightning.pytorch import Trainer
+from torch.utils.data import TensorDataset, DataLoader
 
-from .loss_function import *
-from .utils.utils_morphology import *
-from .utils.utils_clustering import *
-from .utils.utils_vizualization import *
-from .utils.utils_grid import *
-from .dataloader import *
-from .model import *
+from aestetik.data_modules.data_module import AESTETIKDataModule
+from aestetik.modules.aestetik_module import AESTETIKModel
+from aestetik.utils.utils_clustering import clustering
+from aestetik.utils.utils_grid import fix_seed
+from aestetik.utils.utils_data import build_grid
 
-from aestetik.utils.utils_data import prepare_input_for_model as prepare_input
+from typing import Literal
+from typing import Union
 
 
 class AESTETIK:
     def __init__(
         self,
-        adata: anndata,
-        nCluster: Literal[int, float],
+        nCluster: Union[int, float],
         morphology_weight: float,
         total_weight: float = 3,
         rec_alpha: float = 1,
@@ -37,35 +31,27 @@ class AESTETIK:
         c_hid: int = 64,
         lr: float = 0.001,
         p: float = 0.3,
-        epochs: int = 100,
+        max_epochs: int = 100,
         multi_triplet_loss: bool = True,
         n_repeats: int = 1,
         clustering_method: Literal["bgm", "kmeans", "louvain", "leiden"] = "bgm",
         batch_size: int = None,
-        device: Optional[str] = None,
         n_ensemble: int = 3,
         n_ensemble_encoder: int = None,
         n_ensemble_decoder: int = None,
-        used_obsm_transcriptomics: str = "X_pca_transcriptomics",
-        used_obsm_morphology: str = "X_pca_morphology",
-        used_obsm_combined: str = "X_pca",
-        save_emb: str = "AESTETIK",
         random_seed: int = 2023,
         n_neighbors: int = 10,
         weight_decay: float = 1e-6,
-        img_path: str = None,
-        spot_diameter_fullres: int = None,
         refine_cluster: bool = True,
-        n_jobs: int = 1
-    ):
+        n_jobs: int = 1,
+        num_workers: int = 7
+        ):
         """
         Initialize the model with the given parameters.
 
         Parameters
         ----------
-        adata : anndata
-            anndata object.
-        nCluster : Literal[int, float]
+        nCluster : Union[int, float]
             if int: Number of clusters.
             if float: Resolution parameter in leiden and louvain.
         morphology_weight : float
@@ -90,8 +76,8 @@ class AESTETIK:
             Learning rate.
         p : float, optional (default=0.3)
             Dropout probability.
-        epochs : int, optional (default=100)
-            Number of training epochs.
+        max_epochs : int, optional (default=100)
+            Maximum number of training epochs.
         multi_triplet_loss : bool, optional (default=True)
             Whether to use multi-triplet loss.
         n_repeats : int, optional (default=1)
@@ -100,327 +86,230 @@ class AESTETIK:
             Clustering method to use.
         batch_size : int, optional
             Size of the batches.
-        device : Optional[str], optional
-            Device to use (e.g., "cpu" or "cuda").
         n_ensemble : int, optional (default=3)
             Number of ensemble models.
         n_ensemble_encoder : int, optional
             Number of ensemble encoders.
         n_ensemble_decoder : int, optional
             Number of ensemble decoders.
-        used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
-            Key for transcriptomics data in `obsm`.
-        used_obsm_morphology : str, optional (default="X_pca_morphology")
-            Key for morphology data in `obsm`.
-        used_obsm_combined : str, optional (default="X_pca")
-            Key for combined data in `obsm`.
-        save_emb : str, optional (default="AESTETIK")
-            Key for saving embeddings.
         random_seed : int, optional (default=2023)
             Random seed for reproducibility.
         n_neighbors : int, optional (default=10)
             Number of neighbors used in refining the cluster assignments in spatial space through majority voting.
         weight_decay : float, optional (default=1e-6)
             Weight decay for optimizer.
-        img_path : str, optional
-            Path to the image data.
-        spot_diameter_fullres : int, optional
-            Diameter of spots in full resolution.
         refine_cluster : bool, optional (default=True)
             Whether to refine clusters after initial clustering.
         n_jobs : int, optional (default=1)
             Number of parallel jobs to run while building the grid.
+        num_workers: int, optional (default=7)
+            Number of subprocesses to use for data loading.
         """
+        if window_size % 2 == 0:
+            raise ValueError("window_size should be an odd integer")
 
-        # Initialize all the parameters and variables
+        self.grid_params = {
+            "morphology_dim": window_size,
+            "num_input_channels": None,
+            "obsm_transcriptomics_dim": None
+        }
 
-        self.adata = adata
-        self.nCluster = nCluster
-        self.morphology_weight = morphology_weight
-        self.total_weight = total_weight
-        self.window_size = window_size
-        self.train_size = train_size
-        self.kernel_size = kernel_size if kernel_size < self.window_size else max(1, self.window_size - 1)
+        self.model_architecture_params = {
+            "latent_dim": latent_dim,
+            "c_hid": c_hid,
+            "kernel_size": kernel_size if kernel_size < window_size else max(1, window_size - 1),
+            "p": p,
+            "n_ensemble_encoder": n_ensemble_encoder if n_ensemble_encoder else n_ensemble,
+            "n_ensemble_decoder": n_ensemble_decoder if n_ensemble_decoder else n_ensemble
+        }
 
-        self.latent_dim = latent_dim
-        self.c_hid = c_hid
-        self.lr = lr
-        self.p = p
-        self.epochs = epochs
+        self.dataloader_params = {
+            "batch_size": batch_size,
+            "num_workers": num_workers
+        }
 
-        self.multi_triplet_loss = multi_triplet_loss
-        self.rec_alpha = rec_alpha
-        self.triplet_alpha = triplet_alpha
-        self.n_repeats = n_repeats
-        self.clustering_method = clustering_method
+        self.training_params = {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "max_epochs": max_epochs,
+        }
 
-        self.batch_size = batch_size if batch_size else min(2 ** 13, len(self.adata))
+        self.clustering_params = {
+            "nCluster": nCluster,
+            "clustering_method": clustering_method,
+            "n_neighbors": n_neighbors,
+            "refine_cluster": refine_cluster and n_neighbors > 1
+        }
 
-        self.device = device if device else torch.device(
-            "cuda") if torch.cuda.is_available() else torch.device("cpu")
-        self.n_ensemble_encoder = n_ensemble_encoder if n_ensemble_encoder else n_ensemble
-        self.n_ensemble_decoder = n_ensemble_decoder if n_ensemble_decoder else n_ensemble
-        self.save_emb = save_emb
-        self.used_obsm_transcriptomics = used_obsm_transcriptomics
-        self.used_obsm_morphology = used_obsm_morphology
-        self.obsm_transcriptomics_dim = self.adata.obsm[self.used_obsm_transcriptomics].shape[1]
-        self.used_obsm_combined = used_obsm_combined
-        self.n_neighbors = n_neighbors
-        self.weight_decay = weight_decay
-        self.is_model_init = False
-        self.img_path = img_path
-        self.spot_diameter_fullres = spot_diameter_fullres
-        self.refine_cluster = refine_cluster and self.n_neighbors > 1
-        self.n_jobs = n_jobs if n_jobs != -1 else int(multiprocessing.cpu_count())
+        self.loss_regularization_params = {
+            "multi_triplet_loss": multi_triplet_loss, 
+            "rec_alpha": rec_alpha,
+            "triplet_alpha": triplet_alpha,
+            "n_repeats": n_repeats,
+            "morphology_weight": morphology_weight,
+            "transcriptomics_weight": None,
+            "total_weight": total_weight
+        }
 
-        logging.info(f"The model will be on device: {self.device}...")
-        logging.info(f"The batch_size will be: {self.batch_size}.")
-        logging.info(f"Number of threads: {self.n_jobs}.")
-        logging.info(
-            f"""Clustering will be performed using {
-                self.clustering_method} and refine_cluster option: {
-                self.refine_cluster}...""")
+        self.data_handling_params = {
+            "n_jobs": n_jobs if n_jobs != -1 else int(multiprocessing.cpu_count()),
+            "train_size": train_size
+        }
+        
+
+        self.random_seed = random_seed
+        self.lit_aestetik_model = None
+        self.trainer = None
 
         fix_seed(random_seed)
 
-    def summary(self):
-        attr = vars(self)
-        for item in attr.items():
-            print(*item, sep=": ")
-
-    def prepare_input_for_model(self): 
-        """
-        Prepare the input for training the model.
-        1. Clustering raw input
-        2. Grid building
-        """
-        self.transcriptomics_weight, self.morphology_weight = prepare_input(adata=self.adata,
-                                                                                      nCluster=self.nCluster,
-                                                                                      used_obsm_transcriptomics=self.used_obsm_transcriptomics,
-                                                                                      used_obsm_morphology=self.used_obsm_morphology,
-                                                                                      used_obsm_combined=self.used_obsm_combined,
-                                                                                      clustering_method=self.clustering_method,
-                                                                                      n_neighbors=self.n_neighbors,
-                                                                                      window_size=self.window_size,
-                                                                                      n_jobs=self.n_jobs,
-                                                                                      total_weight=self.total_weight,
-                                                                                      morphology_weight=self.morphology_weight)
     
-    def _init_data_loader(self):
-
-        self.data_loader = CustomDataset(
-            adata=self.adata,
-            train_size=self.train_size,
-            multi_triplet_loss=self.multi_triplet_loss,
-            repeats=self.n_repeats,
-            compute_transcriptomics_list=self.transcriptomics_weight > 0,
-            compute_morphology_list=self.morphology_weight > 0)
-
-        self.loader = torch.utils.data.DataLoader(dataset=self.data_loader,
-                                                  batch_size=self.batch_size,
-                                                  shuffle=True)
-
-    def _init_model(self):
-        self.model = AE(num_input_channels=self.adata.obsm["X_st_grid"].shape[1],
-                        morphology_dim=self.adata.obsm["X_st_grid"].shape[2],
-                        c_hid=self.c_hid,
-                        latent_dim=self.latent_dim,
-                        kernel_size=self.kernel_size,
-                        p=self.p,
-                        n_ensemble_encoder=self.n_ensemble_encoder,
-                        n_ensemble_decoder=self.n_ensemble_decoder)
-
-        self.model.to(self.device)
-
-    def _init_optim_and_loss(self):
-        self.triplet_loss = nn.TripletMarginLoss()
-        self.rec_loss = nn.L1Loss()
-
-        # Using an Adam Optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(),
-                                          lr=self.lr,
-                                          amsgrad=True,
-                                          weight_decay=self.weight_decay)
-
-    def train(self):
+    def fit(self, 
+            X: anndata,
+            used_obsm_transcriptomics: str = "X_pca_transcriptomics",
+            used_obsm_morphology: str = "X_pca_morphology",
+            used_obsm_combined: str = "X_pca",
+            ) -> None:
         """
-        Train model
-        """
-        if not self.is_model_init:
-            logging.info(f"Init model attributes...")
-            self._init_data_loader()
-            self._init_model()
-            self._init_optim_and_loss()
-            self.is_model_init = True
-
-        self.losses = []
-        logging.info(f"Start training...")
-        for epoch in (pbar := tqdm(range(self.epochs))):
-
-            for (
-                anchor,
-                pos_transcriptomics_list,
-                neg_transcriptomics_list,
-                pos_morphology_list,
-                    neg_morphology_list) in self.loader:
-
-                anchor = anchor.to(self.device)
-
-                anchor_encode, anchor_decode = self.model(anchor)
-
-                total_loss, rec_loss_transcriptomics, rec_loss_morphology, triplet_loss_transcriptomics, triplet_loss_morphology = compute_loss(self.model,
-                                                                                                                                                anchor,
-                                                                                                                                                anchor_encode,
-                                                                                                                                                anchor_decode,
-                                                                                                                                                pos_transcriptomics_list, neg_transcriptomics_list,
-                                                                                                                                                pos_morphology_list, neg_morphology_list,
-                                                                                                                                                self.transcriptomics_weight,
-                                                                                                                                                self.morphology_weight,
-                                                                                                                                                self.triplet_loss,
-                                                                                                                                                self.triplet_alpha,
-                                                                                                                                                self.rec_loss,
-                                                                                                                                                self.rec_alpha,
-                                                                                                                                                self.obsm_transcriptomics_dim,
-                                                                                                                                                self.device)
-
-                # The gradients are set to zero,
-                # the gradient is computed and stored.
-                # .step() performs parameter update
-                self.optimizer.zero_grad()
-                total_loss.backward()
-                self.optimizer.step()
-
-                # Storing the losses in a list for plotting
-                total_loss = total_loss.cpu().detach().numpy()
-                self.losses.append(total_loss)
-
-            pbar.set_postfix_str(
-                f"""E:{epoch},L:{
-                    total_loss:.2f},RC:{
-                    rec_loss_transcriptomics:.2f},RI:{
-                    rec_loss_morphology:.2f},TC:{
-                    triplet_loss_transcriptomics:.2f},TI:{
-                        triplet_loss_morphology:.2f}""")
-
-    def compute_spot_representations(
-            self,
-            n_repeats: int = 1000,
-            cluster: bool = True):
-        """
-        Computing spot representations by sampling n_times. Then we cluster them into groups.
+        Train the model on the provided AnnData object.
 
         Parameters
         ----------
-        n_repeats : int, optional (default=1000)
-            Number of times to repeat the computation.
-        cluster : bool, optional (default=True)
-            Whether to perform clustering on the computed representations.
+        X : anndata
+            anndata object.
+        used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
+            Key for transcriptomics data in `obsm`.
+        used_obsm_morphology : str, optional (default="X_pca_morphology")
+            Key for morphology data in `obsm`.
+        used_obsm_combined : str, optional (default="X_pca")
+            Key for combined data in `obsm`.
         """
-        logging.info(f"Running inference...")
+        self._validate_fit_inputs(X=X,
+                                  used_obsm_transcriptomics=used_obsm_transcriptomics,
+                                  used_obsm_morphology=used_obsm_morphology)
+        self._set_fit_params(X=X,
+                             used_obsm_transcriptomics=used_obsm_transcriptomics)
 
-        self.adata.obsm[self.save_emb] = self._compute_latent_space(n_repeats=n_repeats, batch_size=self.batch_size)
+        logging.info("Initializing datamodule ...")
+        datamodule = AESTETIKDataModule(X,
+                                        used_obsm_transcriptomics=used_obsm_transcriptomics,
+                                        used_obsm_morphology=used_obsm_morphology,
+                                        used_obsm_combined=used_obsm_combined,
+                                        dataloader_params=self.dataloader_params,
+                                        clustering_params=self.clustering_params,
+                                        grid_params=self.grid_params,
+                                        loss_regularization_params=self.loss_regularization_params,
+                                        data_handling_params=self.data_handling_params)
+        
+        self.lit_aestetik_model = self._build_model(datamodule=datamodule)
 
+        logging.info("Fit AESTETIKModel ...")
+        self.trainer = Trainer(max_epochs=self.training_params["max_epochs"])
+        self.trainer.fit(self.lit_aestetik_model, datamodule=datamodule)
+
+    def _validate_fit_inputs(self,
+                             X: anndata,
+                             used_obsm_transcriptomics: str,
+                             used_obsm_morphology: str):
+        if (used_obsm_morphology not in X.obsm or 
+            used_obsm_transcriptomics not in X.obsm):
+            raise KeyError(
+                f"LitAESTETIK.fit(self, ): Required keys '{used_obsm_morphology}' and '{used_obsm_transcriptomics}' must both be present in X.obsm. "
+                f"Available keys: {list(X.obsm.keys())}"
+            )
+
+    def _set_fit_params(self,
+                        X: anndata,
+                        used_obsm_transcriptomics: str) -> None:
+        if self.dataloader_params["batch_size"] is None:
+            self.dataloader_params["batch_size"] = min(2 ** 13, len(X))
+        
+        self.grid_params["obsm_transcriptomics_dim"] = X.obsm[used_obsm_transcriptomics].shape[1]
+
+    def _build_model(self,
+                     datamodule: AESTETIKDataModule) -> AESTETIKModel:
+        logging.info("Build AESTETIKModel ...")
+
+        training_step_params = {
+            "rec_alpha": self.loss_regularization_params["rec_alpha"],
+            "triplet_alpha": self.loss_regularization_params["triplet_alpha"]}
+
+        optimizer_step_params = {
+            "lr": self.training_params["lr"],
+            "weight_decay": self.training_params["weight_decay"]}
+
+        return AESTETIKModel(datamodule=datamodule,
+                                grid_params=self.grid_params,
+                                model_architecture_params=self.model_architecture_params,
+                                training_params=training_step_params,
+                                optimizer_params=optimizer_step_params)
+
+
+    def predict(self,
+                X: anndata,
+                used_obsm_transcriptomics: str = "X_pca_transcriptomics",
+                used_obsm_morphology: str = "X_pca_morphology",
+                save_emb: str = "AESTETIK",
+                num_repeats: int = 1000,
+                cluster: bool = True) -> None:
+        """
+        Compute spot representations for all spots in X. Then we optionally cluster them into groups.
+        
+        Parameters
+        ----------
+        X : anndata
+            anndata object.
+        num_repeats: int, optional (default=1000)
+            Number of repeats for stochastic prediction.
+        used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
+            Key for transcriptomics data in `obsm`.
+        used_obsm_morphology : str, optional (default="X_pca_morphology")
+            Key for morphology data in `obsm`.
+        save_emb : str, optional (default="AESTETIK")
+            Key for saving embeddings.
+        cluster: bool, optional (default=True)
+            Whether to perform clustering on the latent space.
+        """
+        self._check_fitted()
+        self._set_predict_params(num_repeats=num_repeats)
+
+        predict_dataloader = self._create_predict_dataloader(X=X,
+                                                            used_obsm_transcriptomics=used_obsm_transcriptomics,
+                                                            used_obsm_morphology=used_obsm_morphology)
+        all_latent_space = self.trainer.predict(self.lit_aestetik_model,
+                                                dataloaders=predict_dataloader)
+        all_latent_space = torch.cat(all_latent_space, dim=0)
+        X.obsm[save_emb] = all_latent_space.cpu().numpy()
+        
         if cluster:
-            logging.info(f"Clustering using {self.clustering_method}...")
-            clustering(
-                self.adata,
-                num_cluster=self.nCluster,
-                used_obsm=self.save_emb,
-                method=self.clustering_method,
-                refine_cluster=self.refine_cluster,
-                n_neighbors=self.n_neighbors)
+            clustering(X,
+                       used_obsm=save_emb,
+                       num_cluster=self.clustering_params["nCluster"],
+                       method=self.clustering_params["clustering_method"],
+                       refine_cluster=self.clustering_params["refine_cluster"],
+                       n_neighbors=self.clustering_params["n_neighbors"])
+    
+    def _check_fitted(self):
+        if self.trainer is None or self.lit_aestetik_model is None:
+            raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
+    
+    def _set_predict_params(self, 
+                            num_repeats: int):
+        self.lit_aestetik_model.predict_params["num_repeats"] = num_repeats
 
-    def _compute_latent_space(self, n_repeats, batch_size):
-        all_spots = self.adata.obsm["X_st_grid"].astype(np.float32)
-        all_latent_space = []
-        for batch_spots in batch(all_spots, batch_size=batch_size):
-            batch_spots = torch.from_numpy(batch_spots)
-            batch_spots = batch_spots.to(self.device)
-            batch_latent_space = []
-            for i in range(n_repeats):
-                out = self.model.encoder(batch_spots)
-                out = out.cpu().detach().numpy()
-                batch_latent_space.append(out)
-            batch_latent_space = np.mean(batch_latent_space, axis=0)
-            all_latent_space.extend(batch_latent_space)
-        return np.array(all_latent_space)
-
-    def _compute_centroid(self, topN=5):
-        logging.info(f"Loading centroid info...")
-        self.nc = NearestCentroid()
-        self.nc.fit(self.adata.obsm[self.save_emb], self.adata.obs[f"{self.save_emb}_cluster"])
-
-        self.dist_from_centroid = cdist(self.nc.centroids_, self.adata.obsm[self.save_emb])
-
-        self.adata.obs["centroid"] = np.nan
-
-        self.topN_centroid_idx = np.argpartition(self.dist_from_centroid, topN, axis=1)[
-            :, :topN].reshape(-1, order="F")
-        self.topN_centroid_label = np.tile(self.nc.classes_, topN)
-
-        self.adata.obs.loc[self.adata.obs.index[self.topN_centroid_idx], "centroid"] = self.topN_centroid_label
-
-        for dist_label, label in zip(self.dist_from_centroid, self.nc.classes_):
-            self.adata.obs[f"dist_from_{label}"] = abs(((dist_label - dist_label.min()) /
-                                                        (dist_label.max() - dist_label.min())) - 1)
-
-    def _compute_centroid_morphology(self):
-        logging.info(f"Loading centroid morphology spots...")
-        if self.img_path and self.spot_diameter_fullres:
-            plot_spots(
-                self.img_path,
-                self.adata,
-                self.topN_centroid_idx,
-                self.spot_diameter_fullres,
-                f"{self.save_emb}_cluster")
-        else:
-            print("Morphology path or spot diameter is not specified...")
-
-    def vizualize(self,
-                  plot_loss: bool = False,
-                  plot_clusters: bool = False,
-                  plot_centroid: bool = False,
-                  img_alpha: float = 0.6,
-                  dot_size: int = 5,
-                  ncols: int = 5):
-        """
-        Visualize different aspects of the model's output.
-
-        Parameters
-        ----------
-        plot_loss : bool, optional (default=False)
-            Whether to plot the training loss over epochs.
-        plot_clusters : bool, optional (default=False)
-            Whether to plot the clusters.
-        plot_centroid : bool, optional (default=False)
-            Whether to plot the centroids of the clusters.
-        img_alpha : float, optional (default=0.6)
-            Alpha blending value for the image (opacity).
-        dot_size : int, optional (default=5)
-            Size of the dots in the scatter plot.
-        ncols : int, optional (default=5)
-            Number of columns to use in the subplot grid.
-        """
-
-        if plot_loss:
-            plot_loss_values(self.losses)
-        if plot_clusters:
-            plot_spatial_scatter_ari(self.adata,
-                                     self.used_obsm_transcriptomics,
-                                     self.used_obsm_morphology,
-                                     self.save_emb,
-                                     img_alpha=img_alpha,
-                                     dot_size=dot_size,
-                                     ncols=ncols)
-        if self.adata.obs[f"{self.save_emb}_cluster"].unique().size > 1 and plot_centroid:
-            self._compute_centroid()
-            plot_spatial_centroids_and_distance(self.adata,
-                                                self.save_emb,
-                                                img_alpha=img_alpha,
-                                                dot_size=dot_size,
-                                                ncols=ncols)
-            self._compute_centroid_morphology()
-
-    @staticmethod
-    def version():
-        return "07.06.2024:8"
+    def _create_predict_dataloader(self,
+        X: anndata,
+        used_obsm_transcriptomics: str = "X_pca_transcriptomics",
+        used_obsm_morphology: str = "X_pca_morphology") -> DataLoader:
+        
+        build_grid(X, 
+                   used_obsm_transcriptomics=used_obsm_transcriptomics,
+                   used_obsm_morphology=used_obsm_morphology,
+                   window_size=self.grid_params["morphology_dim"],
+                   n_jobs=self.data_handling_params["n_jobs"])
+        
+        all_spots = torch.from_numpy(X.obsm["X_st_grid"].astype(np.float32))
+        dataset = TensorDataset(all_spots)
+        return DataLoader(dataset, 
+                          shuffle=False,
+                          **self.dataloader_params)
