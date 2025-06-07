@@ -14,9 +14,14 @@ from aestetik.utils.utils_data import build_grid
 
 from typing import Literal
 from typing import Union
+from typing import List
 
 
 class AESTETIK:
+
+    # ================================================================= #
+    #                       Initialization                              #
+    # ================================================================= #
     def __init__(
         self,
         nCluster: Union[int, float],
@@ -163,6 +168,9 @@ class AESTETIK:
 
         fix_seed(random_seed)
 
+    # ================================================================= #
+    #                       Main API Methods                            #
+    # ================================================================= #    
     
     def fit(self, 
             X: anndata,
@@ -233,6 +241,9 @@ class AESTETIK:
             Whether to perform clustering on the latent space.
         """
         self._check_fitted()
+        self._validate_predict_inputs(X,
+                                      used_obsm_transcriptomics=used_obsm_transcriptomics,
+                                      used_obsm_morphology=used_obsm_morphology)
         self._set_predict_params(num_repeats=num_repeats)
 
         predict_dataloader = self._create_predict_dataloader(X=X,
@@ -251,18 +262,69 @@ class AESTETIK:
                        refine_cluster=self.clustering_params["refine_cluster"],
                        n_neighbors=self.clustering_params["n_neighbors"])
     
-    
+
+    # ================================================================= #
+    #                       Validation Utilities                        #
+    # ================================================================= #     
     def _validate_fit_inputs(self,
-                             X: anndata,
-                             used_obsm_transcriptomics: str,
-                             used_obsm_morphology: str):
-        if (used_obsm_morphology not in X.obsm or 
-            used_obsm_transcriptomics not in X.obsm):
+                            X: anndata,
+                            used_obsm_transcriptomics: str,
+                            used_obsm_morphology: str) -> None:
+        
+        self._validate_obsm_keys(X, [used_obsm_morphology, used_obsm_transcriptomics], "fit")
+        self._validate_obs_columns(X, ["x_array", "y_array"], "fit")
+
+    def _validate_predict_inputs(self,
+                                 X: anndata,
+                                 used_obsm_transcriptomics: str,
+                                 used_obsm_morphology: str) -> None:
+        self._validate_obsm_keys(X, [used_obsm_morphology, used_obsm_transcriptomics], "predict")
+        self._validate_obs_columns(X, ["x_array", "y_array"], "predict")
+
+        obsm_transcriptomics_dim = X.obsm[used_obsm_transcriptomics].shape[1]
+        obsm_morphology_dim = X.obsm[used_obsm_morphology].shape[1]
+
+        if (obsm_transcriptomics_dim < self.grid_params["obsm_transcriptomics_dim"] or
+            obsm_transcriptomics_dim + obsm_morphology_dim < self.grid_params["num_input_channels"]):
+            raise ValueError(
+                "Dimensionality of obsm transcriptomics or morphology features is too small. "
+                f"Transcriptomics dim: {obsm_transcriptomics_dim}, "
+                f"Morphology dim: {obsm_morphology_dim}, "
+                f"Total: {obsm_transcriptomics_dim + obsm_morphology_dim}, "
+                f"Required: transcriptomics >= {self.grid_params['obsm_transcriptomics_dim']}, "
+                f"total >= {self.grid_params['num_input_channels']}"
+            )
+        self._calibrate_predict_inputs(X, used_obsm_transcriptomics, used_obsm_morphology)
+    
+    def _check_fitted(self):
+        if self.trainer is None or self.lit_aestetik_model is None:
+            raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
+
+    def _validate_obsm_keys(self, 
+                            X: anndata,
+                            required_keys: List[str], 
+                            method_name: str):
+        missing = [key for key in required_keys if key not in X.obsm]
+        if missing:
             raise KeyError(
-                f"LitAESTETIK.fit(self, ): Required keys '{used_obsm_morphology}' and '{used_obsm_transcriptomics}' must both be present in X.obsm. "
+                f"AESTETIK.{method_name}: Required keys {missing} must be present in X.obsm. "
                 f"Available keys: {list(X.obsm.keys())}"
             )
 
+    def _validate_obs_columns(self, 
+                              X: anndata, 
+                              required_columns: List[str], 
+                              method_name: str):
+        missing = [column for column in required_columns if column not in X.obs]
+        if missing:
+            raise KeyError(
+                f"AESTETIK.{method_name}: Required columns {missing} must be present in X.obs. "
+                f"Available columns: {list(X.obs.columns)}"
+            )
+
+    # ================================================================= #
+    #                       Data Preparation                            #
+    # ================================================================= #
     def _set_fit_params(self,
                         X: anndata,
                         used_obsm_transcriptomics: str) -> None:
@@ -270,32 +332,26 @@ class AESTETIK:
             self.dataloader_params["batch_size"] = min(2 ** 13, len(X))
         
         self.grid_params["obsm_transcriptomics_dim"] = X.obsm[used_obsm_transcriptomics].shape[1]
-
-    def _build_model(self,
-                     datamodule: AESTETIKDataModule) -> AESTETIKModel:
-        logging.info("Build AESTETIKModel ...")
-
-        training_step_params = {
-            "rec_alpha": self.loss_regularization_params["rec_alpha"],
-            "triplet_alpha": self.loss_regularization_params["triplet_alpha"]}
-
-        optimizer_step_params = {
-            "lr": self.training_params["lr"],
-            "weight_decay": self.training_params["weight_decay"]}
-
-        return AESTETIKModel(datamodule=datamodule,
-                                grid_params=self.grid_params,
-                                model_architecture_params=self.model_architecture_params,
-                                training_params=training_step_params,
-                                optimizer_params=optimizer_step_params)
-
-    def _check_fitted(self):
-        if self.trainer is None or self.lit_aestetik_model is None:
-            raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
     
     def _set_predict_params(self, 
                             num_repeats: int):
         self.lit_aestetik_model.predict_params["num_repeats"] = num_repeats
+
+    def _calibrate_predict_inputs(self,
+                                  X: anndata,
+                                  used_obsm_transcriptomics: str,
+                                  used_obsm_morphology: str) -> None:
+        """Calibrate the dimensionality of obsm arrays to match grid_params."""
+        obsm_morphology_dim_target = self.grid_params["num_input_channels"] - self.grid_params["obsm_transcriptomics_dim"]
+
+        if X.obsm[used_obsm_transcriptomics].shape[1] > self.grid_params["obsm_transcriptomics_dim"]:
+            logging.info(f"Cut down transcriptomics dimensionality for {used_obsm_transcriptomics}")
+            X.obsm[used_obsm_transcriptomics] = X.obsm[used_obsm_transcriptomics][:, :self.grid_params["obsm_transcriptomics_dim"]]
+
+        if X.obsm[used_obsm_morphology].shape[1] > obsm_morphology_dim_target:
+            logging.info(f"Cut down morphology dimensionality for {used_obsm_morphology}")
+            X.obsm[used_obsm_morphology] = X.obsm[used_obsm_morphology][:, :obsm_morphology_dim_target]
+    
 
     def _create_predict_dataloader(self,
         X: anndata,
@@ -313,3 +369,24 @@ class AESTETIK:
         return DataLoader(dataset, 
                           shuffle=False,
                           **self.dataloader_params)
+
+    # ================================================================= #
+    #                       Model Construction                          #
+    # ================================================================= #
+    def _build_model(self,
+                     datamodule: AESTETIKDataModule) -> AESTETIKModel:
+        logging.info("Build AESTETIKModel ...")
+
+        training_step_params = {
+            "rec_alpha": self.loss_regularization_params["rec_alpha"],
+            "triplet_alpha": self.loss_regularization_params["triplet_alpha"]}
+
+        optimizer_step_params = {
+            "lr": self.training_params["lr"],
+            "weight_decay": self.training_params["weight_decay"]}
+
+        return AESTETIKModel(datamodule=datamodule,
+                                grid_params=self.grid_params,
+                                model_architecture_params=self.model_architecture_params,
+                                training_params=training_step_params,
+                                optimizer_params=optimizer_step_params)
