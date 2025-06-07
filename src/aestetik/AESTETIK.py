@@ -207,44 +207,6 @@ class AESTETIK:
         self.trainer = Trainer(max_epochs=self.training_params["max_epochs"])
         self.trainer.fit(self.lit_aestetik_model, datamodule=datamodule)
 
-    def _validate_fit_inputs(self,
-                             X: anndata,
-                             used_obsm_transcriptomics: str,
-                             used_obsm_morphology: str):
-        if (used_obsm_morphology not in X.obsm or 
-            used_obsm_transcriptomics not in X.obsm):
-            raise KeyError(
-                f"LitAESTETIK.fit(self, ): Required keys '{used_obsm_morphology}' and '{used_obsm_transcriptomics}' must both be present in X.obsm. "
-                f"Available keys: {list(X.obsm.keys())}"
-            )
-
-    def _set_fit_params(self,
-                        X: anndata,
-                        used_obsm_transcriptomics: str) -> None:
-        if self.dataloader_params["batch_size"] is None:
-            self.dataloader_params["batch_size"] = min(2 ** 13, len(X))
-        
-        self.grid_params["obsm_transcriptomics_dim"] = X.obsm[used_obsm_transcriptomics].shape[1]
-
-    def _build_model(self,
-                     datamodule: AESTETIKDataModule) -> AESTETIKModel:
-        logging.info("Build AESTETIKModel ...")
-
-        training_step_params = {
-            "rec_alpha": self.loss_regularization_params["rec_alpha"],
-            "triplet_alpha": self.loss_regularization_params["triplet_alpha"]}
-
-        optimizer_step_params = {
-            "lr": self.training_params["lr"],
-            "weight_decay": self.training_params["weight_decay"]}
-
-        return AESTETIKModel(datamodule=datamodule,
-                                grid_params=self.grid_params,
-                                model_architecture_params=self.model_architecture_params,
-                                training_params=training_step_params,
-                                optimizer_params=optimizer_step_params)
-
-
     def predict(self,
                 X: anndata,
                 used_obsm_transcriptomics: str = "X_pca_transcriptomics",
@@ -289,6 +251,44 @@ class AESTETIK:
                        refine_cluster=self.clustering_params["refine_cluster"],
                        n_neighbors=self.clustering_params["n_neighbors"])
     
+    
+    def _validate_fit_inputs(self,
+                             X: anndata,
+                             used_obsm_transcriptomics: str,
+                             used_obsm_morphology: str):
+        if (used_obsm_morphology not in X.obsm or 
+            used_obsm_transcriptomics not in X.obsm):
+            raise KeyError(
+                f"LitAESTETIK.fit(self, ): Required keys '{used_obsm_morphology}' and '{used_obsm_transcriptomics}' must both be present in X.obsm. "
+                f"Available keys: {list(X.obsm.keys())}"
+            )
+
+    def _set_fit_params(self,
+                        X: anndata,
+                        used_obsm_transcriptomics: str) -> None:
+        if self.dataloader_params["batch_size"] is None:
+            self.dataloader_params["batch_size"] = min(2 ** 13, len(X))
+        
+        self.grid_params["obsm_transcriptomics_dim"] = X.obsm[used_obsm_transcriptomics].shape[1]
+
+    def _build_model(self,
+                     datamodule: AESTETIKDataModule) -> AESTETIKModel:
+        logging.info("Build AESTETIKModel ...")
+
+        training_step_params = {
+            "rec_alpha": self.loss_regularization_params["rec_alpha"],
+            "triplet_alpha": self.loss_regularization_params["triplet_alpha"]}
+
+        optimizer_step_params = {
+            "lr": self.training_params["lr"],
+            "weight_decay": self.training_params["weight_decay"]}
+
+        return AESTETIKModel(datamodule=datamodule,
+                                grid_params=self.grid_params,
+                                model_architecture_params=self.model_architecture_params,
+                                training_params=training_step_params,
+                                optimizer_params=optimizer_step_params)
+
     def _check_fitted(self):
         if self.trainer is None or self.lit_aestetik_model is None:
             raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
