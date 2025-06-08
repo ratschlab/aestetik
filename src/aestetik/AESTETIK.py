@@ -283,16 +283,18 @@ class AESTETIK:
 
         obsm_transcriptomics_dim = X.obsm[used_obsm_transcriptomics].shape[1]
         obsm_morphology_dim = X.obsm[used_obsm_morphology].shape[1]
+        obsm_morphology_dim_target = self.grid_params["num_input_channels"] - self.grid_params["obsm_transcriptomics_dim"]
+
 
         if (obsm_transcriptomics_dim < self.grid_params["obsm_transcriptomics_dim"] or
-            obsm_transcriptomics_dim + obsm_morphology_dim < self.grid_params["num_input_channels"]):
+            obsm_morphology_dim < obsm_morphology_dim_target):
             raise ValueError(
                 "Dimensionality of obsm transcriptomics or morphology features is too small. "
                 f"Transcriptomics dim: {obsm_transcriptomics_dim}, "
                 f"Morphology dim: {obsm_morphology_dim}, "
                 f"Total: {obsm_transcriptomics_dim + obsm_morphology_dim}, "
                 f"Required: transcriptomics >= {self.grid_params['obsm_transcriptomics_dim']}, "
-                f"total >= {self.grid_params['num_input_channels']}"
+                f"morphology >= {obsm_morphology_dim_target}"
             )
         self._calibrate_predict_inputs(X, used_obsm_transcriptomics, used_obsm_morphology)
     
