@@ -106,7 +106,7 @@ class AESTETIKDataModule(L.LightningDataModule):
                                            **self.dataloader_params,
                                            shuffle=True)
         
-    def _validate_params(self):
+    def _validate_params(self) -> None:
         required = {
             'dataloader_params': ['batch_size', 'num_workers'],
             'clustering_params': ['nCluster', 'clustering_method', 'n_neighbors'],
