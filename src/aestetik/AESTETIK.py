@@ -300,14 +300,14 @@ class AESTETIK:
             )
         self._calibrate_predict_inputs(X, used_obsm_transcriptomics, used_obsm_morphology)
     
-    def _check_fitted(self):
+    def _check_fitted(self) -> None:
         if self.trainer is None or self.lit_aestetik_model is None:
             raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
 
     def _validate_obsm_keys(self, 
                             X: anndata,
                             required_keys: List[str], 
-                            method_name: str):
+                            method_name: str) -> None:
         missing = [key for key in required_keys if key not in X.obsm]
         if missing:
             raise KeyError(
@@ -318,7 +318,7 @@ class AESTETIK:
     def _validate_obs_columns(self, 
                               X: anndata, 
                               required_columns: List[str], 
-                              method_name: str):
+                              method_name: str) -> None:
         missing = [column for column in required_columns if column not in X.obs]
         if missing:
             raise KeyError(
