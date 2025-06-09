@@ -15,6 +15,7 @@ from aestetik.utils.utils_data import build_grid
 from typing import Literal
 from typing import Union
 from typing import List
+from typing import Optional
 
 
 class AESTETIK:
@@ -29,7 +30,7 @@ class AESTETIK:
         total_weight: float = 3,
         rec_alpha: float = 1,
         triplet_alpha: float = 1,
-        train_size: float = None,
+        train_size: Optional[float] = None,
         window_size: int = 7,
         kernel_size: int = 3,
         latent_dim: int = 16,
@@ -40,10 +41,10 @@ class AESTETIK:
         multi_triplet_loss: bool = True,
         n_repeats: int = 1,
         clustering_method: Literal["bgm", "kmeans", "louvain", "leiden"] = "bgm",
-        batch_size: int = None,
+        batch_size: Optional[int] = None,
         n_ensemble: int = 3,
-        n_ensemble_encoder: int = None,
-        n_ensemble_decoder: int = None,
+        n_ensemble_encoder: Optional[int] = None,
+        n_ensemble_decoder: Optional[int] = None,
         random_seed: int = 2023,
         n_neighbors: int = 10,
         weight_decay: float = 1e-6,
@@ -163,8 +164,8 @@ class AESTETIK:
         
 
         self.random_seed = random_seed
-        self.lit_aestetik_model = None
-        self.trainer = None
+        self.lit_aestetik_model: Optional[AESTETIKModel] = None
+        self.trainer: Optional[Trainer] = None
 
         fix_seed(random_seed)
 
@@ -212,6 +213,7 @@ class AESTETIK:
         self.lit_aestetik_model = self._build_model(datamodule=datamodule)
 
         logging.info("Fit AESTETIKModel ...")
+        print(type(self.training_params["max_epochs"]))
         self.trainer = Trainer(max_epochs=self.training_params["max_epochs"])
         self.trainer.fit(self.lit_aestetik_model, datamodule=datamodule)
 
@@ -336,7 +338,7 @@ class AESTETIK:
         self.grid_params["obsm_transcriptomics_dim"] = X.obsm[used_obsm_transcriptomics].shape[1]
     
     def _set_predict_params(self, 
-                            num_repeats: int):
+                            num_repeats: int) -> None:
         self.lit_aestetik_model.predict_params["num_repeats"] = num_repeats
 
     def _calibrate_predict_inputs(self,
