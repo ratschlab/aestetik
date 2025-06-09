@@ -24,7 +24,6 @@ class AESTETIKModel(L.LightningModule):
         ----------
         grid_params: dict 
             Dictionary with grid parameters. Expected keys:
-                    Number of channels in the input grid.
                 -'obsm_transcriptomics_dim: int
                     Number of transcriptomics channels in the input grid
         model_architecture_params : dict
@@ -83,11 +82,11 @@ class AESTETIKModel(L.LightningModule):
             return 
 
         self.adata = self.datamodule.adata
-        self.hparams.grid_params["morphology_dim"] = self.adata.obsm["X_st_grid"].shape[2]
-        self.hparams.grid_params["num_input_channels"] = self.adata.obsm["X_st_grid"].shape[1]
+        self.hparams["grid_params"]["morphology_dim"] = self.adata.obsm["X_st_grid"].shape[2]
+        self.hparams["grid_params"]["num_input_channels"] = self.adata.obsm["X_st_grid"].shape[1]
 
-        self.model = AE(**self.hparams.grid_params, 
-                        **self.hparams.model_architecture_params)
+        self.model = AE(**self.hparams["grid_params"], 
+                        **self.hparams["model_architecture_params"])
         self.model_built = True
 
 
@@ -105,11 +104,11 @@ class AESTETIKModel(L.LightningModule):
                                                                                                                                         neg_transcriptomics_list=neg_transcriptomics_list,
                                                                                                                                         pos_morphology_list=pos_morphology_list,
                                                                                                                                         neg_morphology_list=neg_morphology_list,
-                                                                                                                                        obsm_transcriptomics_dim=self.hparams.grid_params["obsm_transcriptomics_dim"],
+                                                                                                                                        obsm_transcriptomics_dim=self.hparams["grid_params"]["obsm_transcriptomics_dim"],
                                                                                                                                         device=self.device,
                                                                                                                                         **self.loss,
                                                                                                                                         **self.weights,
-                                                                                                                                        **self.hparams.training_params)
+                                                                                                                                        **self.hparams["training_params"])
         self.log("L", total_loss)
         self.log("RC", rec_loss_transcriptomics)
         self.log("RI", rec_loss_morphology)
@@ -140,12 +139,12 @@ class AESTETIKModel(L.LightningModule):
         return batch_latent_space
 
         
-    def configure_optimizers(self) -> dict:
+    def configure_optimizers(self) -> torch.optim.Optimizer:
         logging.info("Configuring optimizer ...")
         optimizer = torch.optim.Adam(self.model.parameters(),
                                      amsgrad=True,
-                                     **self.hparams.optimizer_params)
-        return {"optimizer": optimizer} 
+                                     **self.hparams["optimizer_params"])
+        return optimizer 
 
 
     def _validate_params(self) -> None:
