@@ -5,12 +5,16 @@ import logging
 import multiprocessing
 from lightning.pytorch import Trainer
 from torch.utils.data import TensorDataset, DataLoader
+from sklearn.neighbors import NearestCentroid
+from scipy.spatial.distance import cdist
 
 from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.modules.aestetik_module import AESTETIKModel
+from aestetik.modules.callbacks import LossHistoryCallback
 from aestetik.utils.utils_clustering import clustering
 from aestetik.utils.utils_grid import fix_seed
 from aestetik.utils.utils_data import build_grid
+from aestetik.utils.utils_vizualization import plot_spots, plot_loss_values, plot_spatial_scatter_ari,plot_spatial_centroids_and_distance
 
 from typing import Literal
 from typing import Union
@@ -174,24 +178,27 @@ class AESTETIK:
     # ================================================================= #    
     
     def fit(self, 
-            X: anndata,
+            X: anndata.AnnData,
             used_obsm_transcriptomics: str = "X_pca_transcriptomics",
             used_obsm_morphology: str = "X_pca_morphology",
             used_obsm_combined: str = "X_pca",
+            used_obs_batch: Optional[str] = None
             ) -> None:
         """
-        Train the model on the provided AnnData object.
+        Trains the model on the provided AnnData object.
 
         Parameters
         ----------
-        X : anndata
-            anndata object.
+        X : anndata.AnnData
+            AnnData object.
         used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
             Key for transcriptomics data in `obsm`.
         used_obsm_morphology : str, optional (default="X_pca_morphology")
             Key for morphology data in `obsm`.
         used_obsm_combined : str, optional (default="X_pca")
             Key for combined data in `obsm`.
+        used_obs_batch: Optional[str], optional (default=None)
+            Key for column in `obs` that differentiates among experiments or batches.
         """
         self._validate_fit_inputs(X=X,
                                   used_obsm_transcriptomics=used_obsm_transcriptomics,
@@ -204,6 +211,7 @@ class AESTETIK:
                                         used_obsm_transcriptomics=used_obsm_transcriptomics,
                                         used_obsm_morphology=used_obsm_morphology,
                                         used_obsm_combined=used_obsm_combined,
+                                        used_obs_batch=used_obs_batch,
                                         dataloader_params=self.dataloader_params,
                                         clustering_params=self.clustering_params,
                                         grid_params=self.grid_params,
@@ -213,30 +221,36 @@ class AESTETIK:
         self.lit_aestetik_model = self._build_model(datamodule=datamodule)
 
         logging.info("Fit AESTETIKModel ...")
-        print(type(self.training_params["max_epochs"]))
-        self.trainer = Trainer(max_epochs=self.training_params["max_epochs"])
+        loss_callback = LossHistoryCallback()
+        self.trainer = Trainer(max_epochs=self.training_params["max_epochs"],
+                               callbacks=[loss_callback],
+                               num_sanity_val_steps=0)
         self.trainer.fit(self.lit_aestetik_model, datamodule=datamodule)
+        self.losses = loss_callback.losses
 
     def predict(self,
-                X: anndata,
+                X: anndata.AnnData,
                 used_obsm_transcriptomics: str = "X_pca_transcriptomics",
                 used_obsm_morphology: str = "X_pca_morphology",
+                used_obs_batch: Optional[str] = None,
                 save_emb: str = "AESTETIK",
                 num_repeats: int = 1000,
                 cluster: bool = True) -> None:
         """
-        Compute spot representations for all spots in X. Then we optionally cluster them into groups.
+        Computes spot representations for all spots in X. Then we optionally cluster them into groups.
         
         Parameters
         ----------
-        X : anndata
-            anndata object.
+        X : anndata.AnnData
+            AnnData object.
         num_repeats: int, optional (default=1000)
             Number of repeats for stochastic prediction.
         used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
             Key for transcriptomics data in `obsm`.
         used_obsm_morphology : str, optional (default="X_pca_morphology")
             Key for morphology data in `obsm`.
+        used_obs_batch: Optional[str], optional (default=None)
+            Key for column in `obs` that differentiates among experiments or batches.
         save_emb : str, optional (default="AESTETIK")
             Key for saving embeddings.
         cluster: bool, optional (default=True)
@@ -248,28 +262,181 @@ class AESTETIK:
                                       used_obsm_morphology=used_obsm_morphology)
         self._set_predict_params(num_repeats=num_repeats)
 
-        predict_dataloader = self._create_predict_dataloader(X=X,
-                                                            used_obsm_transcriptomics=used_obsm_transcriptomics,
-                                                            used_obsm_morphology=used_obsm_morphology)
-        all_latent_space = self.trainer.predict(self.lit_aestetik_model,
-                                                dataloaders=predict_dataloader)
-        all_latent_space = torch.cat(all_latent_space, dim=0)
-        X.obsm[save_emb] = all_latent_space.cpu().numpy()
-        
-        if cluster:
-            clustering(X,
-                       used_obsm=save_emb,
-                       num_cluster=self.clustering_params["nCluster"],
-                       method=self.clustering_params["clustering_method"],
-                       refine_cluster=self.clustering_params["refine_cluster"],
-                       n_neighbors=self.clustering_params["n_neighbors"])
+        all_latent_space = self._compute_latent_space(X,
+                                                      used_obsm_transcriptomics=used_obsm_transcriptomics,
+                                                      used_obsm_morphology=used_obsm_morphology,
+                                                      used_obs_batch=used_obs_batch)
+        self._postprocess_predictions(X,
+                                      latent_space=all_latent_space,
+                                      save_emb=save_emb,
+                                      cluster=cluster)
     
+    def fit_predict(self,
+                    X: anndata.AnnData,
+                    used_obsm_transcriptomics: str = "X_pca_transcriptomics",
+                    used_obsm_morphology: str = "X_pca_morphology",
+                    used_obsm_combined: str = "X_pca",
+                    used_obs_batch: Optional[str] = None,
+                    save_emb: str = "AESTETIK",
+                    num_repeats: int = 1000,
+                    cluster: bool = True) -> None:
+        """
+        Trains the model on the provided AnnData object and then computes spot representations. Then we optionally cluster them into groups.
+        
+        Parameters
+        ----------
+        X : anndata.AnnData
+            AnnData object.
+        used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
+            Key for transcriptomics data in `obsm`.
+        used_obsm_morphology : str, optional (default="X_pca_morphology")
+            Key for morphology data in `obsm`.
+        used_obsm_combined : str, optional (default="X_pca")
+            Key for combined data in `obsm`.
+        used_obs_batch: Optional[str], optional (default=None)
+            Key for column in `obs` that differentiates among experiments or batches.
+        save_emb : str, optional (default="AESTETIK")
+            Key for saving embeddings.
+        num_repeats: int, optional (default=1000)
+            Number of repeats for stochastic prediction.
+        cluster: bool, optional (default=True)
+            Whether to perform clustering on the latent space.
+        """
+        self.fit(X, 
+                 used_obsm_transcriptomics=used_obsm_transcriptomics,
+                 used_obsm_morphology=used_obsm_morphology,
+                 used_obsm_combined=used_obsm_combined,
+                 used_obs_batch=used_obs_batch)
+                    
+        self._set_predict_params(num_repeats=num_repeats)
+        all_latent_space = self._compute_latent_space(X,
+                                                      built_grid=True)
+        self._postprocess_predictions(X,
+                                      latent_space=all_latent_space,
+                                      save_emb=save_emb,
+                                      cluster=cluster)
+
+    def vizualize(self,
+                  adata: Optional[anndata.AnnData] = None,
+                  img_path: Optional[str] = None,
+                  spot_diameter_fullres: Optional[int] = None,
+                  used_obsm_transcriptomics: str = "X_pca_transcriptomics",
+                  used_obsm_morphology: str = "X_pca_morphology",
+                  save_emb: str = "AESTETIK",
+                  plot_loss: bool = False,
+                  plot_clusters: bool = False,
+                  plot_centroid: bool = False,
+                  img_alpha: float = 0.6,
+                  dot_size: int = 5,
+                  ncols: int = 5):
+        """
+        Visualize different aspects of the model's output.
+
+        Parameters
+        ----------
+        adata : Optional[anndata.AnnData], optional (default=None)
+            AnnData object.
+        img_path : Optional[str], optional (default=None)
+            Path to the image data.
+        spot_diameter_fullres : Optional[int], optional (default=None)
+            Diameter of spots in full resolution.
+        used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
+            Key for transcriptomics data in `obsm`.
+        used_obsm_morphology : str, optional (default="X_pca_morphology")
+            Key for morphology data in `obsm`.
+        plot_loss : bool, optional (default=False)
+            Whether to plot the training loss over epochs.
+        plot_clusters : bool, optional (default=False)
+            Whether to plot the clusters.
+        plot_centroid : bool, optional (default=False)
+            Whether to plot the centroids of the clusters.
+        img_alpha : float, optional (default=0.6)
+            Alpha blending value for the image (opacity).
+        dot_size : int, optional (default=5)
+            Size of the dots in the scatter plot.
+        ncols : int, optional (default=5)
+            Number of columns to use in the subplot grid.
+        """
+
+        if plot_loss:
+            plot_loss_values(self.losses)
+            print(len(self.losses))
+            print(self.losses)
+        if plot_clusters:
+            if adata is None:
+                raise ValueError("Cannot plot clusters: 'adata' must be provided (not None)."
+                                 "Please specify a valid AnnData object.")
+            plot_spatial_scatter_ari(adata,
+                                     used_obsm_transcriptomics,
+                                     used_obsm_morphology,
+                                     save_emb,
+                                     img_alpha=img_alpha,
+                                     dot_size=dot_size,
+                                     ncols=ncols)
+        if adata.obs[f"{save_emb}_cluster"].unique().size > 1 and plot_centroid:
+            if (spot_diameter_fullres is None or img_path is None):
+                raise ValueError("Cannot plot centroids: both 'spot_diameter_fullres' and 'img_path' must be provided (not None). "
+                                 "Please specify a valid image path and spot diameter in full resolution.")
+
+            topN_centroid_idx = self._compute_centroid(adata=adata,
+                                   save_emb=save_emb)
+            plot_spatial_centroids_and_distance(adata,
+                                                save_emb,
+                                                img_alpha=img_alpha,
+                                                dot_size=dot_size,
+                                                ncols=ncols)
+            self._compute_centroid_morphology(img_path=img_path,
+                                              adata=adata,
+                                              topN_centroid_idx=topN_centroid_idx,
+                                              spot_diameter_fullres=spot_diameter_fullres,
+                                              save_emb=save_emb)
+
+
+    def _compute_centroid(self, 
+                          adata: anndata.AnnData,
+                          save_emb: str,
+                          topN: int = 5) -> np.ndarray:
+        logging.info("Loading centroid info...")
+        nc = NearestCentroid()
+        nc.fit(adata.obsm[save_emb], adata.obs[f"{save_emb}_cluster"])
+
+        dist_from_centroid = cdist(nc.centroids_, adata.obsm[save_emb])
+
+        adata.obs["centroid"] = np.nan
+
+        topN_centroid_idx = np.argpartition(dist_from_centroid, topN, axis=1)[
+            :, :topN].reshape(-1, order="F")
+        topN_centroid_label = np.tile(nc.classes_, topN)
+
+        adata.obs.loc[adata.obs.index[topN_centroid_idx], "centroid"] = topN_centroid_label
+
+        for dist_label, label in zip(dist_from_centroid, nc.classes_):
+            adata.obs[f"dist_from_{label}"] = abs(((dist_label - dist_label.min()) /
+                                                        (dist_label.max() - dist_label.min())) - 1)
+        return topN_centroid_idx
+
+    def _compute_centroid_morphology(self,
+                                     img_path: str,
+                                     adata: anndata.AnnData,
+                                     topN_centroid_idx: np.ndarray,
+                                     spot_diameter_fullres: int,
+                                     save_emb: str) -> None: 
+        logging.info("Loading centroid morphology spots...")
+        if img_path and spot_diameter_fullres:
+            plot_spots(
+                img_path,
+                adata,
+                topN_centroid_idx,
+                spot_diameter_fullres,
+                f"{save_emb}_cluster")
+        else:
+            print("Morphology path or spot diameter is not specified...")
 
     # ================================================================= #
     #                       Validation Utilities                        #
     # ================================================================= #     
     def _validate_fit_inputs(self,
-                            X: anndata,
+                            X: anndata.AnnData,
                             used_obsm_transcriptomics: str,
                             used_obsm_morphology: str) -> None:
         
@@ -277,7 +444,7 @@ class AESTETIK:
         self._validate_obs_columns(X, ["x_array", "y_array"], "fit")
 
     def _validate_predict_inputs(self,
-                                 X: anndata,
+                                 X: anndata.AnnData,
                                  used_obsm_transcriptomics: str,
                                  used_obsm_morphology: str) -> None:
         self._validate_obsm_keys(X, [used_obsm_morphology, used_obsm_transcriptomics], "predict")
@@ -305,7 +472,7 @@ class AESTETIK:
             raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
 
     def _validate_obsm_keys(self, 
-                            X: anndata,
+                            X: anndata.AnnData,
                             required_keys: List[str], 
                             method_name: str) -> None:
         missing = [key for key in required_keys if key not in X.obsm]
@@ -316,7 +483,7 @@ class AESTETIK:
             )
 
     def _validate_obs_columns(self, 
-                              X: anndata, 
+                              X: anndata.AnnData, 
                               required_columns: List[str], 
                               method_name: str) -> None:
         missing = [column for column in required_columns if column not in X.obs]
@@ -330,7 +497,7 @@ class AESTETIK:
     #                       Data Preparation                            #
     # ================================================================= #
     def _set_fit_params(self,
-                        X: anndata,
+                        X: anndata.AnnData,
                         used_obsm_transcriptomics: str) -> None:
         if self.dataloader_params["batch_size"] is None:
             self.dataloader_params["batch_size"] = min(2 ** 13, len(X))
@@ -342,10 +509,12 @@ class AESTETIK:
         self.lit_aestetik_model.predict_params["num_repeats"] = num_repeats
 
     def _calibrate_predict_inputs(self,
-                                  X: anndata,
+                                  X: anndata.AnnData,
                                   used_obsm_transcriptomics: str,
                                   used_obsm_morphology: str) -> None:
-        """Calibrate the dimensionality of obsm arrays to match grid_params."""
+        """
+        Calibrate the dimensionality of obsm arrays to match grid_params.
+        """
         obsm_morphology_dim_target = self.grid_params["num_input_channels"] - self.grid_params["obsm_transcriptomics_dim"]
 
         if X.obsm[used_obsm_transcriptomics].shape[1] > self.grid_params["obsm_transcriptomics_dim"]:
@@ -358,13 +527,17 @@ class AESTETIK:
     
 
     def _create_predict_dataloader(self,
-        X: anndata,
-        used_obsm_transcriptomics: str = "X_pca_transcriptomics",
-        used_obsm_morphology: str = "X_pca_morphology") -> DataLoader:
+        X: anndata.AnnData,
+        used_obsm_transcriptomics: Optional[str] = None,
+        used_obsm_morphology: Optional[str] = None,
+        used_obs_batch: Optional[str] = None,
+        built_grid: bool = False) -> DataLoader:
         
-        build_grid(X, 
+        if not built_grid:
+            build_grid(X, 
                    used_obsm_transcriptomics=used_obsm_transcriptomics,
                    used_obsm_morphology=used_obsm_morphology,
+                   used_obs_batch=used_obs_batch,
                    window_size=self.grid_params["morphology_dim"],
                    n_jobs=self.data_handling_params["n_jobs"])
         
@@ -373,6 +546,40 @@ class AESTETIK:
         return DataLoader(dataset, 
                           shuffle=False,
                           **self.dataloader_params)
+
+    # ================================================================= #
+    #               Prediction and Postprocessing Utilities             #
+    # ================================================================= # 
+    def _compute_latent_space(self,
+                              X: anndata.AnnData, 
+                              used_obsm_transcriptomics: Optional[str] = None,
+                              used_obsm_morphology: Optional[str] = None,
+                              used_obs_batch: Optional[str] = None,
+                              built_grid = False) -> np.ndarray:
+        predict_dataloader = self._create_predict_dataloader(X,
+                                                             used_obsm_transcriptomics=used_obsm_transcriptomics,
+                                                             used_obsm_morphology=used_obsm_morphology,
+                                                             used_obs_batch=used_obs_batch,
+                                                             built_grid=built_grid)
+        all_latent_space = self.trainer.predict(self.lit_aestetik_model,
+                                                dataloaders=predict_dataloader)
+        all_latent_space = torch.cat(all_latent_space, dim=0)
+        return all_latent_space
+
+    def _postprocess_predictions(self,
+                                 X: anndata.AnnData,
+                                 latent_space: np.ndarray,
+                                 save_emb:str,
+                                 cluster: bool) -> None:
+        X.obsm[save_emb] = latent_space.cpu().numpy()
+        
+        if cluster:
+            clustering(X,
+            used_obsm=save_emb,
+            num_cluster=self.clustering_params["nCluster"],
+            method=self.clustering_params["clustering_method"],
+            refine_cluster=self.clustering_params["refine_cluster"],
+            n_neighbors=self.clustering_params["n_neighbors"])
 
     # ================================================================= #
     #                       Model Construction                          #
