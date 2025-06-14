@@ -2,9 +2,10 @@ import anndata
 import torch 
 import lightning as L 
 
-
 from aestetik.utils.utils_data import prepare_input_for_model
 from aestetik.dataloader import CustomDataset
+
+from typing import Optional
 
 
 class AESTETIKDataModule(L.LightningDataModule):
@@ -17,7 +18,8 @@ class AESTETIKDataModule(L.LightningDataModule):
                  clustering_params: dict,
                  grid_params: dict,
                  loss_regularization_params: dict,
-                 data_handling_params: dict):
+                 data_handling_params: dict,
+                 used_obs_batch: Optional[str] = None):
         super().__init__()
         """
         Parameters
@@ -67,12 +69,17 @@ class AESTETIKDataModule(L.LightningDataModule):
                     Number of parallel jobs to run while building the grid.
                 -'train_size': Optional[float]
                     Size of the training set. If float, should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the train split. If int, represents the absolute number of train samples. If None, the value is automatically set to the complement of the test size.
+        used_obs_batch: Optional[str], optional (default=None)
+            Key for column in `obs` that differentiates among experiments or batches.
+
         """
         self.adata = adata 
         self.used_obsm = {
                         "used_obsm_transcriptomics": used_obsm_transcriptomics,
                         "used_obsm_morphology": used_obsm_morphology,
                         "used_obsm_combined": used_obsm_combined}
+        self.used_obs = {
+                        "used_obs_batch": used_obs_batch}
         self.dataloader_params = dataloader_params
         self.clustering_params = clustering_params 
         self.grid_params = grid_params
@@ -91,7 +98,8 @@ class AESTETIKDataModule(L.LightningDataModule):
                                                                                                                                                   n_neighbors=self.clustering_params["n_neighbors"],
                                                                                                                                                   nCluster=self.clustering_params["nCluster"],
                                                                                                                                                   clustering_method=self.clustering_params["clustering_method"],
-                                                                                                                                                  **self.used_obsm
+                                                                                                                                                  **self.used_obsm,
+                                                                                                                                                  **self.used_obs
                                                                                                                                                   )
         self.dataset = CustomDataset(self.adata,
                                      multi_triplet_loss=self.loss_regularization_params["multi_triplet_loss"],

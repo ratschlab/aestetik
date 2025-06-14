@@ -5,6 +5,7 @@ import anndata
 from typing import Literal
 from typing import Union
 from typing import Tuple
+from typing import Optional
 
 from aestetik.utils.utils_clustering import clustering
 from aestetik.utils.utils_grid import create_st_grid
@@ -22,6 +23,7 @@ def prepare_input_for_model(
         n_jobs: int,
         total_weight: float,
         morphology_weight: float,
+        used_obs_batch: Optional[str] = None,
         **kwargs) -> Tuple[float, float]:
         """
         Prepare the input for training the model.
@@ -62,7 +64,8 @@ def prepare_input_for_model(
                    used_obsm_transcriptomics=used_obsm_transcriptomics,
                    used_obsm_morphology=used_obsm_morphology,
                    window_size=window_size,
-                   n_jobs=n_jobs)
+                   n_jobs=n_jobs,
+                   used_obs_batch=used_obs_batch)
 
         return transcriptomics_weight, morphology_weight
 
@@ -70,20 +73,21 @@ def build_grid(adata: anndata,
                used_obsm_transcriptomics: str,
                used_obsm_morphology: str,
                window_size: int,
-               n_jobs: int) -> None:
+               n_jobs: int,
+               used_obs_batch: Optional[str] = None) -> None:
     logging.info("Computing transcriptomics grid...")
     X_st_grid_transcriptomics = create_st_grid(
-    adata, used_obsm=used_obsm_transcriptomics, window_size=window_size, cpu_count=n_jobs)
+    adata, used_obsm=used_obsm_transcriptomics, window_size=window_size, cpu_count=n_jobs, used_obs_batch=used_obs_batch)
         
     logging.info("Computing morphology grid...")
     X_st_grid_morphology = create_st_grid(
-    adata, used_obsm=used_obsm_morphology, window_size=window_size, cpu_count=n_jobs)
+    adata, used_obsm=used_obsm_morphology, window_size=window_size, cpu_count=n_jobs, used_obs_batch=used_obs_batch)
 
     adata.obsm["X_st_grid"] = np.concatenate(
     (X_st_grid_transcriptomics, X_st_grid_morphology), axis=1)
 
 def calibrate_transcriptomics_morphology_ratio(
-    adata: anndata.AnnData, 
+    adata: anndata, 
     nCluster: Union[int, float], 
     used_obsm_transcriptomics: str, 
     used_obsm_morphology: str, 
