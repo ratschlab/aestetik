@@ -11,6 +11,15 @@ The preprint is available [here](https://www.medrxiv.org/content/10.1101/2024.06
 
   - [08.2024] AESTETIK secured the 1st place at the Mammoth International Contest On Omics Sciences in Europe 2024 organized by China National GeneBank, BGI Genomics, MGI and CODATA [link](https://micos.cngb.org/europe/index.html).
 
+## Changelog
+**NEW version (June 2025)**
+  - **UPDATE:** Rewrote AESTETIK using the Lightning framework for improved modularity
+  - **Added:** New `fit()/predict()` API
+  - **Added:** Support for processing multiple samples at once
+  - **Removed:** Multiple old methods and parameters in AESTETIK have been removed 
+
+See [full changelog](CHANGELOG.md) for more details.
+    
 ## Do you want to gain a multi-modal understanding of key biological processes through spatial transcriptomics?
 
 We introduce AESTETIK, a convolutional autoencoder model. It jointly integrates transcriptomics and morphology information, on a spot level, and topology, on a neighborhood level, to learn accurate spot representations that capture biological complexity.
