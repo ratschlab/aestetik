@@ -360,8 +360,6 @@ class AESTETIK:
 
         if plot_loss:
             plot_loss_values(self.losses)
-            print(len(self.losses))
-            print(self.losses)
         if plot_clusters:
             if adata is None:
                 raise ValueError("Cannot plot clusters: 'adata' must be provided (not None)."
@@ -391,49 +389,12 @@ class AESTETIK:
                                               spot_diameter_fullres=spot_diameter_fullres,
                                               save_emb=save_emb)
 
-
-    def _compute_centroid(self, 
-                          adata: anndata.AnnData,
-                          save_emb: str,
-                          topN: int = 5) -> np.ndarray:
-        logging.info("Loading centroid info...")
-        nc = NearestCentroid()
-        nc.fit(adata.obsm[save_emb], adata.obs[f"{save_emb}_cluster"])
-
-        dist_from_centroid = cdist(nc.centroids_, adata.obsm[save_emb])
-
-        adata.obs["centroid"] = np.nan
-
-        topN_centroid_idx = np.argpartition(dist_from_centroid, topN, axis=1)[
-            :, :topN].reshape(-1, order="F")
-        topN_centroid_label = np.tile(nc.classes_, topN)
-
-        adata.obs.loc[adata.obs.index[topN_centroid_idx], "centroid"] = topN_centroid_label
-
-        for dist_label, label in zip(dist_from_centroid, nc.classes_):
-            adata.obs[f"dist_from_{label}"] = abs(((dist_label - dist_label.min()) /
-                                                        (dist_label.max() - dist_label.min())) - 1)
-        return topN_centroid_idx
-
-    def _compute_centroid_morphology(self,
-                                     img_path: str,
-                                     adata: anndata.AnnData,
-                                     topN_centroid_idx: np.ndarray,
-                                     spot_diameter_fullres: int,
-                                     save_emb: str) -> None: 
-        logging.info("Loading centroid morphology spots...")
-        if img_path and spot_diameter_fullres:
-            plot_spots(
-                img_path,
-                adata,
-                topN_centroid_idx,
-                spot_diameter_fullres,
-                f"{save_emb}_cluster")
-        else:
-            print("Morphology path or spot diameter is not specified...")
+        @staticmethod
+        def version():
+            return "16.06.2025:1"
 
     # ================================================================= #
-    #                       Validation Utilities                        #
+    #                      Private Validation Methods                   #
     # ================================================================= #     
     def _validate_fit_inputs(self,
                             X: anndata.AnnData,
@@ -494,7 +455,7 @@ class AESTETIK:
             )
 
     # ================================================================= #
-    #                       Data Preparation                            #
+    #                   Private Data Preparation Methods                #
     # ================================================================= #
     def _set_fit_params(self,
                         X: anndata.AnnData,
@@ -548,7 +509,7 @@ class AESTETIK:
                           **self.dataloader_params)
 
     # ================================================================= #
-    #               Prediction and Postprocessing Utilities             #
+    #           Private Prediction and Postprocessing Methods           #
     # ================================================================= # 
     def _compute_latent_space(self,
                               X: anndata.AnnData, 
@@ -580,6 +541,49 @@ class AESTETIK:
             method=self.clustering_params["clustering_method"],
             refine_cluster=self.clustering_params["refine_cluster"],
             n_neighbors=self.clustering_params["n_neighbors"])
+
+    # ================================================================= #
+    #                    Private Vizualization Methods                  #
+    # ================================================================= # 
+    def _compute_centroid(self, 
+                          adata: anndata.AnnData,
+                          save_emb: str,
+                          topN: int = 5) -> np.ndarray:
+        logging.info("Loading centroid info...")
+        nc = NearestCentroid()
+        nc.fit(adata.obsm[save_emb], adata.obs[f"{save_emb}_cluster"])
+
+        dist_from_centroid = cdist(nc.centroids_, adata.obsm[save_emb])
+
+        adata.obs["centroid"] = np.nan
+
+        topN_centroid_idx = np.argpartition(dist_from_centroid, topN, axis=1)[
+            :, :topN].reshape(-1, order="F")
+        topN_centroid_label = np.tile(nc.classes_, topN)
+
+        adata.obs.loc[adata.obs.index[topN_centroid_idx], "centroid"] = topN_centroid_label
+
+        for dist_label, label in zip(dist_from_centroid, nc.classes_):
+            adata.obs[f"dist_from_{label}"] = abs(((dist_label - dist_label.min()) /
+                                                        (dist_label.max() - dist_label.min())) - 1)
+        return topN_centroid_idx
+
+    def _compute_centroid_morphology(self,
+                                     img_path: str,
+                                     adata: anndata.AnnData,
+                                     topN_centroid_idx: np.ndarray,
+                                     spot_diameter_fullres: int,
+                                     save_emb: str) -> None: 
+        logging.info("Loading centroid morphology spots...")
+        if img_path and spot_diameter_fullres:
+            plot_spots(
+                img_path,
+                adata,
+                topN_centroid_idx,
+                spot_diameter_fullres,
+                f"{save_emb}_cluster")
+        else:
+            print("Morphology path or spot diameter is not specified...")
 
     # ================================================================= #
     #                       Model Construction                          #
