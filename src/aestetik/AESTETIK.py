@@ -389,10 +389,6 @@ class AESTETIK:
                                               spot_diameter_fullres=spot_diameter_fullres,
                                               save_emb=save_emb)
 
-        @staticmethod
-        def version():
-            return "16.06.2025:1"
-
     # ================================================================= #
     #                      Private Validation Methods                   #
     # ================================================================= #     
@@ -605,3 +601,7 @@ class AESTETIK:
                                 model_architecture_params=self.model_architecture_params,
                                 training_params=training_step_params,
                                 optimizer_params=optimizer_step_params)
+
+    @staticmethod
+    def version():
+        return "16.06.2025:1"
