@@ -371,23 +371,27 @@ class AESTETIK:
                                      img_alpha=img_alpha,
                                      dot_size=dot_size,
                                      ncols=ncols)
-        if adata.obs[f"{save_emb}_cluster"].unique().size > 1 and plot_centroid:
-            if (spot_diameter_fullres is None or img_path is None):
-                raise ValueError("Cannot plot centroids: both 'spot_diameter_fullres' and 'img_path' must be provided (not None). "
-                                 "Please specify a valid image path and spot diameter in full resolution.")
-
-            topN_centroid_idx = self._compute_centroid(adata=adata,
-                                   save_emb=save_emb)
-            plot_spatial_centroids_and_distance(adata,
-                                                save_emb,
-                                                img_alpha=img_alpha,
-                                                dot_size=dot_size,
-                                                ncols=ncols)
-            self._compute_centroid_morphology(img_path=img_path,
-                                              adata=adata,
-                                              topN_centroid_idx=topN_centroid_idx,
-                                              spot_diameter_fullres=spot_diameter_fullres,
-                                              save_emb=save_emb)
+        if plot_centroid:
+            if adata is None:
+                raise ValueError("Cannot plot centroids: 'adata' must be provided (not None). Please specify a valid AnnData object.")
+            if adata.obs[f"{save_emb}_cluster"].unique().size > 1:
+                if spot_diameter_fullres is None or img_path is None:
+                    raise ValueError(
+                        "Cannot plot centroids: both 'spot_diameter_fullres' and 'img_path' must be provided (not None). "
+                        "Please specify a valid image path and spot diameter in full resolution."
+                    )
+                topN_centroid_idx = self._compute_centroid(adata=adata,
+                                                           save_emb=save_emb)
+                plot_spatial_centroids_and_distance(adata,
+                                                    save_emb,
+                                                    img_alpha=img_alpha,
+                                                    dot_size=dot_size,
+                                                    ncols=ncols)
+                self._compute_centroid_morphology(img_path=img_path,
+                                                  adata=adata,
+                                                  topN_centroid_idx=topN_centroid_idx,
+                                                  spot_diameter_fullres=spot_diameter_fullres,
+                                                  save_emb=save_emb)
 
     # ================================================================= #
     #                      Private Validation Methods                   #
