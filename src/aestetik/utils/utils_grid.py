@@ -8,13 +8,10 @@ import os
 
 from joblib import Parallel, delayed
 from torch.backends import cudnn
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 from sklearn.preprocessing import MinMaxScaler
 
-from typing import Dict
-from typing import Optional
-from typing import Tuple
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 format_to_dtype = {
     'uchar': np.uint8,
@@ -112,7 +109,7 @@ def create_st_grid(adata: anndata,
 
 def _build_trees(x_array: np.ndarray,
                  y_array: np.ndarray,
-                 batch_labels: np.ndarray) -> Tuple[Dict[int, cKDTree], Dict[int, np.ndarray]]:
+                 batch_labels: np.ndarray) -> Tuple[Dict[int, KDTree], Dict[int, np.ndarray]]:
     batch_ids = np.unique(batch_labels)
     trees = dict()
     batch_to_indices = dict()
@@ -120,7 +117,7 @@ def _build_trees(x_array: np.ndarray,
     for batch_id in batch_ids:
         spot_indices = np.where(batch_labels == batch_id)[0]
         coords = np.column_stack([x_array[spot_indices], y_array[spot_indices]])
-        trees[batch_id] = cKDTree(coords)
+        trees[batch_id] = KDTree(coords)
         batch_to_indices[batch_id] = spot_indices 
     
     return trees, batch_to_indices

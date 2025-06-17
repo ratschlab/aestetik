@@ -10,7 +10,7 @@ from scipy.spatial.distance import cdist
 
 from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.modules.aestetik_module import AESTETIKModel
-from aestetik.modules.callbacks import LossHistoryCallback
+from aestetik.callbacks.callbacks import LossHistoryCallback
 from aestetik.utils.utils_clustering import clustering
 from aestetik.utils.utils_grid import fix_seed
 from aestetik.utils.utils_data import build_grid
@@ -334,11 +334,11 @@ class AESTETIK:
 
         Parameters
         ----------
-        adata : Optional[anndata.AnnData], optional (default=None)
+        adata : Optional[anndata.AnnData], required for plotting clusters or centroids (default=None)
             AnnData object.
-        img_path : Optional[str], optional (default=None)
+        img_path : Optional[str], required for plotting centroids (default=None)
             Path to the image data.
-        spot_diameter_fullres : Optional[int], optional (default=None)
+        spot_diameter_fullres : Optional[int], required for plotting centroids (default=None)
             Diameter of spots in full resolution.
         used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
             Key for transcriptomics data in `obsm`.

@@ -5,7 +5,7 @@ from torch import nn, Tensor
 
 from aestetik.models.model import AE
 from aestetik.data_modules.data_module import AESTETIKDataModule
-from aestetik.loss_function import compute_loss
+from aestetik.metrics.loss_function import compute_loss
 
 from typing import Tuple
 from typing import List 
