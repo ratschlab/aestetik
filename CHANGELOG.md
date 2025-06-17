@@ -32,7 +32,7 @@ The following parameters are no longer required during instantiation. Most are n
 #### 3.1 Updated input parameters
 - `AESTETIK.vizualize(<parameters>)`: Input parameters updated to fit the new API
 #### 3.2 Updated tutorial notebooks
-- All tutorial notebooks have been updated to use the new API
+- Tutorial notebooks [gettingStartedWithAESTETIK.ipynb](example/gettingStartedWithAESTETIK.ipynb) and [gettingStartedWithAESTETIKwithSimulatedData.ipynb](example/gettingStartedWithAESTETIKwithSimulatedData.ipynb) have been updated to use the new API
 ---
 ### New capabilities
 - **Cross-sample training and prediction:** Train on one sample, predict on another
