@@ -16,7 +16,7 @@ The preprint is available [here](https://www.medrxiv.org/content/10.1101/2024.06
   - **UPDATE:** Rewrote AESTETIK using the Lightning framework for improved modularity
   - **Added:** New `fit()/predict()` API
   - **Added:** Support for processing multiple samples at once
-  - **Removed:** Multiple old methods and parameters in AESTETIK have been removed 
+  - **Removed:** Multiple old methods and parameters in AESTETIK 
 
 See [full changelog](CHANGELOG.md) for more details.
     
