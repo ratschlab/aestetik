@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - `AESTETIK.prepare_input_for_model(<parameters>)`: integrated into `fit`
 - `AESTETIK.train(<parameters>)`: replaced by `fit`
 - `AESTETIK.compute_spot(<parameters>)`: replaced by `predict`
+- `AESTETIK.vizualize(<parameters>)`: renamed it into `visualize` and moved it into [`utils/utils_visualization.py`](src/aestetik/utils/utils_visualization.py)(previously `utils_vizualization.py`)
 
 #### 1.2 Removed instantiation parameters for AESTETIK 
 The following parameters are no longer required during instantiation. Most are now passed directly to the methods that require them:
