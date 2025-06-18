@@ -57,9 +57,9 @@ class AE(nn.Module):
             latent_dim,
             kernel_size,
             p,
-            device,
             n_ensemble_encoder=2,
-            n_ensemble_decoder=1):
+            n_ensemble_decoder=1,
+            **kwargs):
         super().__init__()
 
         conv_out_1 = (morphology_dim - kernel_size) + 1
@@ -67,14 +67,14 @@ class AE(nn.Module):
 
         # Encoder ensemble
         encoder_ensemble = [
-            Encode(num_input_channels, c_hid, latent_dim, kernel_size, p, conv_out_2).to(device)
+            Encode(num_input_channels, c_hid, latent_dim, kernel_size, p, conv_out_2)
             for _ in range(n_ensemble_encoder)
         ]
         self.encoder_ensemble = nn.ModuleList(encoder_ensemble)
 
         # Decoder ensemble
         decoder_ensemble = [
-            Decode(num_input_channels, c_hid, latent_dim, kernel_size, p, conv_out_1, conv_out_2).to(device)
+            Decode(num_input_channels, c_hid, latent_dim, kernel_size, p, conv_out_1, conv_out_2)
             for _ in range(n_ensemble_decoder)
         ]
         self.decoder_ensemble = nn.ModuleList(decoder_ensemble)
