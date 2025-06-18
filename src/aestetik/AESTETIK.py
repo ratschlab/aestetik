@@ -5,8 +5,6 @@ import logging
 import multiprocessing
 from lightning.pytorch import Trainer
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.neighbors import NearestCentroid
-from scipy.spatial.distance import cdist
 
 from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.modules.aestetik_module import AESTETIKModel
@@ -14,7 +12,6 @@ from aestetik.callbacks.callbacks import LossHistoryCallback
 from aestetik.utils.utils_clustering import clustering
 from aestetik.utils.utils_grid import fix_seed
 from aestetik.utils.utils_data import build_grid
-from aestetik.utils.utils_vizualization import plot_spots, plot_loss_values, plot_spatial_scatter_ari,plot_spatial_centroids_and_distance
 
 from typing import Literal
 from typing import Union
@@ -316,83 +313,6 @@ class AESTETIK:
                                       save_emb=save_emb,
                                       cluster=cluster)
 
-    def vizualize(self,
-                  adata: Optional[anndata.AnnData] = None,
-                  img_path: Optional[str] = None,
-                  spot_diameter_fullres: Optional[int] = None,
-                  used_obsm_transcriptomics: str = "X_pca_transcriptomics",
-                  used_obsm_morphology: str = "X_pca_morphology",
-                  save_emb: str = "AESTETIK",
-                  plot_loss: bool = False,
-                  plot_clusters: bool = False,
-                  plot_centroid: bool = False,
-                  img_alpha: float = 0.6,
-                  dot_size: int = 5,
-                  ncols: int = 5):
-        """
-        Visualize different aspects of the model's output.
-
-        Parameters
-        ----------
-        adata : Optional[anndata.AnnData], required for plotting clusters or centroids (default=None)
-            AnnData object.
-        img_path : Optional[str], required for plotting centroids (default=None)
-            Path to the image data.
-        spot_diameter_fullres : Optional[int], required for plotting centroids (default=None)
-            Diameter of spots in full resolution.
-        used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
-            Key for transcriptomics data in `obsm`.
-        used_obsm_morphology : str, optional (default="X_pca_morphology")
-            Key for morphology data in `obsm`.
-        plot_loss : bool, optional (default=False)
-            Whether to plot the training loss over epochs.
-        plot_clusters : bool, optional (default=False)
-            Whether to plot the clusters.
-        plot_centroid : bool, optional (default=False)
-            Whether to plot the centroids of the clusters.
-        img_alpha : float, optional (default=0.6)
-            Alpha blending value for the image (opacity).
-        dot_size : int, optional (default=5)
-            Size of the dots in the scatter plot.
-        ncols : int, optional (default=5)
-            Number of columns to use in the subplot grid.
-        """
-
-        if plot_loss:
-            plot_loss_values(self.losses)
-        if plot_clusters:
-            if adata is None:
-                raise ValueError("Cannot plot clusters: 'adata' must be provided (not None)."
-                                 "Please specify a valid AnnData object.")
-            plot_spatial_scatter_ari(adata,
-                                     used_obsm_transcriptomics,
-                                     used_obsm_morphology,
-                                     save_emb,
-                                     img_alpha=img_alpha,
-                                     dot_size=dot_size,
-                                     ncols=ncols)
-        if plot_centroid:
-            if adata is None:
-                raise ValueError("Cannot plot centroids: 'adata' must be provided (not None). Please specify a valid AnnData object.")
-            if adata.obs[f"{save_emb}_cluster"].unique().size > 1:
-                if spot_diameter_fullres is None or img_path is None:
-                    raise ValueError(
-                        "Cannot plot centroids: both 'spot_diameter_fullres' and 'img_path' must be provided (not None). "
-                        "Please specify a valid image path and spot diameter in full resolution."
-                    )
-                topN_centroid_idx = self._compute_centroid(adata=adata,
-                                                           save_emb=save_emb)
-                plot_spatial_centroids_and_distance(adata,
-                                                    save_emb,
-                                                    img_alpha=img_alpha,
-                                                    dot_size=dot_size,
-                                                    ncols=ncols)
-                self._compute_centroid_morphology(img_path=img_path,
-                                                  adata=adata,
-                                                  topN_centroid_idx=topN_centroid_idx,
-                                                  spot_diameter_fullres=spot_diameter_fullres,
-                                                  save_emb=save_emb)
-
     # ================================================================= #
     #                      Private Validation Methods                   #
     # ================================================================= #     
@@ -541,49 +461,6 @@ class AESTETIK:
             method=self.clustering_params["clustering_method"],
             refine_cluster=self.clustering_params["refine_cluster"],
             n_neighbors=self.clustering_params["n_neighbors"])
-
-    # ================================================================= #
-    #                    Private Vizualization Methods                  #
-    # ================================================================= # 
-    def _compute_centroid(self, 
-                          adata: anndata.AnnData,
-                          save_emb: str,
-                          topN: int = 5) -> np.ndarray:
-        logging.info("Loading centroid info...")
-        nc = NearestCentroid()
-        nc.fit(adata.obsm[save_emb], adata.obs[f"{save_emb}_cluster"])
-
-        dist_from_centroid = cdist(nc.centroids_, adata.obsm[save_emb])
-
-        adata.obs["centroid"] = np.nan
-
-        topN_centroid_idx = np.argpartition(dist_from_centroid, topN, axis=1)[
-            :, :topN].reshape(-1, order="F")
-        topN_centroid_label = np.tile(nc.classes_, topN)
-
-        adata.obs.loc[adata.obs.index[topN_centroid_idx], "centroid"] = topN_centroid_label
-
-        for dist_label, label in zip(dist_from_centroid, nc.classes_):
-            adata.obs[f"dist_from_{label}"] = abs(((dist_label - dist_label.min()) /
-                                                        (dist_label.max() - dist_label.min())) - 1)
-        return topN_centroid_idx
-
-    def _compute_centroid_morphology(self,
-                                     img_path: str,
-                                     adata: anndata.AnnData,
-                                     topN_centroid_idx: np.ndarray,
-                                     spot_diameter_fullres: int,
-                                     save_emb: str) -> None: 
-        logging.info("Loading centroid morphology spots...")
-        if img_path and spot_diameter_fullres:
-            plot_spots(
-                img_path,
-                adata,
-                topN_centroid_idx,
-                spot_diameter_fullres,
-                f"{save_emb}_cluster")
-        else:
-            print("Morphology path or spot diameter is not specified...")
 
     # ================================================================= #
     #                       Model Construction                          #
