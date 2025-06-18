@@ -70,13 +70,16 @@ def visualize(model: AESTETIK,
         ncols : int, optional (default=5)
             Number of columns to use in the subplot grid.
         """
-
+        _validate_visualize_inputs(adata=adata,
+                                  img_path=img_path,
+                                  spot_diameter_fullres=spot_diameter_fullres,
+                                  save_emb=save_emb,
+                                  plot_loss=plot_loss,
+                                  plot_clusters=plot_clusters,
+                                  plot_centroid=plot_centroid)
         if plot_loss:
             _plot_loss_values(model.losses)
         if plot_clusters:
-            if adata is None:
-                raise ValueError("Cannot plot clusters: 'adata' must be provided (not None)."
-                                 "Please specify a valid AnnData object.")
             _plot_spatial_scatter_ari(adata,
                                       used_obsm_transcriptomics,
                                       used_obsm_morphology,
@@ -85,14 +88,6 @@ def visualize(model: AESTETIK,
                                       dot_size=dot_size,
                                       ncols=ncols)
         if plot_centroid:
-            if adata is None:
-                raise ValueError("Cannot plot centroids: 'adata' must be provided (not None). Please specify a valid AnnData object.")
-            if adata.obs[f"{save_emb}_cluster"].unique().size > 1:
-                if spot_diameter_fullres is None or img_path is None:
-                    raise ValueError(
-                        "Cannot plot centroids: both 'spot_diameter_fullres' and 'img_path' must be provided (not None). "
-                        "Please specify a valid image path and spot diameter in full resolution."
-                    )
                 topN_centroid_idx = _compute_centroid(adata=adata,
                                                       save_emb=save_emb)
                 _plot_spatial_centroids_and_distance(adata,
@@ -107,7 +102,7 @@ def visualize(model: AESTETIK,
                                                   save_emb=save_emb)
 
 # ================================================================= #
-#                    Private Visualization Methods                  #
+#                    Private Plotting Methods                       #
 # ================================================================= # 
 def _plot_loss_values(losses):
     plt.xlabel('Iterations')
@@ -165,17 +160,6 @@ def _plot_spatial_scatter_ari(adata,
         size=dot_size,
         ncols=ncols)
 
-
-def _get_spot(image, x, y, spot_diameter_fullres):
-    x = x - int(spot_diameter_fullres // 2)
-    y = y - int(spot_diameter_fullres // 2)
-    spot = image.crop(x, y, spot_diameter_fullres, spot_diameter_fullres)
-    spot_array = np.ndarray(buffer=spot.write_to_memory(),
-                            dtype=format_to_dtype[spot.format],
-                            shape=[spot.height, spot.width, spot.bands])
-    return spot_array
-
-
 def _plot_spots(img_path, adata, indeces_to_plot, spot_diameter_fullres, label=None):
 
     image = pyvips.Image.new_from_file(img_path)
@@ -196,7 +180,21 @@ def _plot_spots(img_path, adata, indeces_to_plot, spot_diameter_fullres, label=N
         plt.axis('off')
     plt.show()
 
+# ================================================================= #
+#                     Private Extraction Methods                    #
+# ================================================================= # 
+def _get_spot(image, x, y, spot_diameter_fullres):
+    x = x - int(spot_diameter_fullres // 2)
+    y = y - int(spot_diameter_fullres // 2)
+    spot = image.crop(x, y, spot_diameter_fullres, spot_diameter_fullres)
+    spot_array = np.ndarray(buffer=spot.write_to_memory(),
+                            dtype=format_to_dtype[spot.format],
+                            shape=[spot.height, spot.width, spot.bands])
+    return spot_array
 
+# ================================================================= #
+#              Private Centroid Computation Methods                 #
+# ================================================================= # 
 def _compute_centroid(adata: anndata.AnnData,
                       save_emb: str,
                       topN: int = 5) -> np.ndarray:
@@ -233,3 +231,26 @@ def _compute_centroid_morphology(img_path: str,
                     f"{save_emb}_cluster")
     else:
         print("Morphology path or spot diameter is not specified...")
+
+# ================================================================= #
+#                    Private Validation Methods                     #
+# ================================================================= # 
+def _validate_visualize_inputs(
+    adata: Optional[anndata.AnnData],
+    img_path: Optional[str],
+    spot_diameter_fullres: Optional[int],
+    save_emb: str,
+    plot_loss: bool,
+    plot_clusters: bool,
+    plot_centroid: bool) -> None:
+    
+    if plot_clusters and adata is None:
+        raise ValueError("Cannot plot clusters: 'adata' must be provided (not None)."
+                                 "Please specify a valid AnnData object.")
+    if plot_centroid:
+        if adata is None:
+            raise ValueError("Cannot plot centroids: 'adata' must be provided (not None).")
+        if adata.obs[f"{save_emb}_cluster"].nunique() <= 1:
+            raise ValueError(f"Cannot plot centroids: more than one cluster required in '{save_emb}_cluster'.")
+        if spot_diameter_fullres is None or img_path is None:
+            raise ValueError("Cannot plot centroids: 'spot_diameter_fullres' and 'img_path' must be provided.")
