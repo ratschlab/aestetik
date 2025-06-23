@@ -51,7 +51,7 @@ class AESTETIK:
         weight_decay: float = 1e-6,
         refine_cluster: bool = True,
         n_jobs: int = 1,
-        num_workers: int = 7
+        num_workers: int = 0
         ):
         """
         Initialize the model with the given parameters.
