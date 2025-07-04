@@ -1,13 +1,18 @@
-from sklearn.mixture import BayesianGaussianMixture
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import silhouette_score
-from scipy.spatial.distance import cdist
-from sklearn.cluster import KMeans
 import plotnine as p9
-from tqdm import tqdm
 import pandas as pd
 import scanpy as sc
 import numpy as np
+import anndata
+
+from sklearn.mixture import BayesianGaussianMixture
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
+from scipy.spatial.distance import cdist
+from tqdm import tqdm
+
+from typing import Optional
+
 
 
 def find_optimal_n_clusters(adata, start=2, end=10, suggested_n=None):
@@ -142,7 +147,8 @@ def clustering(
         conf_proba=0.9,
         start=0.1,
         end=3,
-        increment=0.02):
+        increment=0.02,
+        used_obs_batch=None):
 
     if method == 'leiden':
         if isinstance(num_cluster, int):
@@ -195,25 +201,75 @@ def clustering(
             adata.obsm[used_obsm]).max(axis=1)
 
     if refine_cluster:
-        if f"{used_obsm}_cluster_proba" in adata.obs:
-            high_conf = adata.obs[f"{used_obsm}_cluster_proba"] > conf_proba
-            X = adata.obs[["x_array", "y_array"]].values[high_conf]
-            y = adata.obs[f"{used_obsm}_cluster"].values[high_conf]
-        else:
-            X = adata.obs[["x_array", "y_array"]].values
-            y = adata.obs[f"{used_obsm}_cluster"].values
+        _refine_cluster(
+            adata=adata,
+            used_obsm=used_obsm,
+            used_obs_batch=used_obs_batch,
+            n_neighbors=n_neighbors,
+            conf_proba=conf_proba
+        )
 
-        # make sure there are multiple clusters,
-        # otherwise refinement doesn't make sense
-        if np.unique(y).size > 1:
-            neigh = KNeighborsClassifier(
+def _refine_cluster(
+    adata: anndata.AnnData,
+    used_obsm: str,
+    used_obs_batch: Optional[str],
+    n_neighbors: int,
+    conf_proba: float
+):
+    cluster_col = f"{used_obsm}_cluster"
+    proba_col = f"{used_obsm}_cluster_proba"
+    spatial_cols = ["x_array", "y_array"]
+
+    if used_obs_batch is not None:
+        for batch_id in adata.obs[used_obs_batch].unique():
+            mask = adata.obs[used_obs_batch] == batch_id
+            df = adata.obs.loc[mask]
+            refined = _refine(
+                df,
+                cluster_col=cluster_col,
+                proba_col=proba_col,
+                conf_proba=conf_proba,
                 n_neighbors=n_neighbors,
-                weights="uniform",
-                algorithm="brute")
-            neigh.fit(X,
-                      y)
+                spatial_cols=spatial_cols
+            )
+            if refined is not None:
+                adata.obs.loc[mask, cluster_col] = refined
+    else:
+        refined = _refine(
+            adata.obs,
+            cluster_col=cluster_col,
+            proba_col=proba_col,
+            conf_proba=conf_proba,
+            n_neighbors=n_neighbors,
+            spatial_cols=spatial_cols
+        )
+        if refined is not None:
+            adata.obs[cluster_col] = refined
 
-            refined_clusters = neigh.predict(
-                adata.obs[["x_array", "y_array"]].values)
-            adata.obs[f"{used_obsm}_cluster"] = refined_clusters.astype(
-                str)
+def _refine(
+    df,
+    cluster_col: str,
+    proba_col: str,
+    conf_proba: float,
+    n_neighbors: int,
+    spatial_cols: list
+):
+    if proba_col in df:
+        high_conf = df[proba_col] > conf_proba
+        X = df.loc[high_conf, spatial_cols].values
+        y = df.loc[high_conf, cluster_col].values
+    else:
+        X = df[spatial_cols].values
+        y = df[cluster_col].values
+
+    if np.unique(y).size <= 1:
+        return None
+
+    knn = KNeighborsClassifier(
+        n_neighbors=n_neighbors,
+        weights="uniform",
+        algorithm="brute"
+    )
+    knn.fit(X, y)
+    refined_clusters = knn.predict(df[spatial_cols].values)
+    return refined_clusters.astype(str)

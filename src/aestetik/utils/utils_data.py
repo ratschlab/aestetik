@@ -36,6 +36,7 @@ def prepare_input_for_model(
             adata=adata,
             num_cluster=nCluster,
             used_obsm=used_obsm_transcriptomics,
+            used_obs_batch=used_obs_batch,
             method=clustering_method,
             n_neighbors=n_neighbors,
             refine_cluster=0)
@@ -44,6 +45,7 @@ def prepare_input_for_model(
             adata=adata,
             num_cluster=nCluster,
             used_obsm=used_obsm_morphology,
+            used_obs_batch=used_obs_batch,
             method=clustering_method,
             n_neighbors=n_neighbors,
             refine_cluster=0)
