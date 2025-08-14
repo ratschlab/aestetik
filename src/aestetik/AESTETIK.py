@@ -266,7 +266,8 @@ class AESTETIK:
         self._postprocess_predictions(X,
                                       latent_space=all_latent_space,
                                       save_emb=save_emb,
-                                      cluster=cluster)
+                                      cluster=cluster,
+                                      used_obs_batch=used_obs_batch)
     
     def fit_predict(self,
                     X: anndata.AnnData,
@@ -311,7 +312,8 @@ class AESTETIK:
         self._postprocess_predictions(X,
                                       latent_space=all_latent_space,
                                       save_emb=save_emb,
-                                      cluster=cluster)
+                                      cluster=cluster,
+                                      used_obs_batch=used_obs_batch)
 
     # ================================================================= #
     #                      Private Validation Methods                   #
@@ -451,7 +453,8 @@ class AESTETIK:
                                  X: anndata.AnnData,
                                  latent_space: np.ndarray,
                                  save_emb:str,
-                                 cluster: bool) -> None:
+                                 cluster: bool,
+                                 used_obs_batch: str) -> None:
         X.obsm[save_emb] = latent_space.cpu().numpy()
         
         if cluster:
@@ -460,7 +463,8 @@ class AESTETIK:
             num_cluster=self.clustering_params["nCluster"],
             method=self.clustering_params["clustering_method"],
             refine_cluster=self.clustering_params["refine_cluster"],
-            n_neighbors=self.clustering_params["n_neighbors"])
+            n_neighbors=self.clustering_params["n_neighbors"],
+            used_obs_batch=used_obs_batch)
 
     # ================================================================= #
     #                       Model Construction                          #
