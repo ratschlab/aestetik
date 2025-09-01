@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
+import os
 
-with open('requirements.txt') as f:
+with open(os.path.join(os.path.dirname(__file__), "requirements.txt")) as f:
     requirements = f.read().splitlines()
 
 setup(name='aestetik',
