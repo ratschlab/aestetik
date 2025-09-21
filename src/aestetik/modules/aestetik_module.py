@@ -116,7 +116,29 @@ class AESTETIKModel(L.LightningModule):
         self.log("TI", triplet_loss_morphology)
         return total_loss
     
-
+    def validation_step(self,
+                      batch: Tuple[Tensor, List[Tensor], List[Tensor], List[Tensor], List[Tensor]],
+                      batch_idx: int) -> Tensor: 
+        self.model.train()
+        with torch.no_grad():
+            anchor, pos_transcriptomics_list, neg_transcriptomics_list, pos_morphology_list, neg_morphology_list = batch
+            anchor_encode, anchor_decode = self.model(x=anchor)
+            total_loss, rec_loss_transcriptomics, rec_loss_morphology, triplet_loss_transcriptomics, triplet_loss_morphology = compute_loss(model=self.model,
+                                                                                                                                        anchor=anchor,
+                                                                                                                                        anchor_encode=anchor_encode,
+                                                                                                                                        anchor_decode=anchor_decode,
+                                                                                                                                        pos_transcriptomics_list=pos_transcriptomics_list,
+                                                                                                                                        neg_transcriptomics_list=neg_transcriptomics_list,
+                                                                                                                                        pos_morphology_list=pos_morphology_list,
+                                                                                                                                        neg_morphology_list=neg_morphology_list,
+                                                                                                                                        obsm_transcriptomics_dim=self.hparams["grid_params"]["obsm_transcriptomics_dim"],
+                                                                                                                                        device=self.device,
+                                                                                                                                        **self.loss,
+                                                                                                                                        **self.weights,
+                                                                                                                                        **self.hparams["training_params"])
+            self.log("val_loss", total_loss)
+            return total_loss
+            
     def predict_step(self,
                      batch: Tuple[Tensor,...],
                      batch_idx: int,
@@ -137,7 +159,6 @@ class AESTETIKModel(L.LightningModule):
         batch_latent_space = torch.stack(batch_latent_space, dim=0)
         batch_latent_space = torch.mean(batch_latent_space, dim=0)
         return batch_latent_space
-
         
     def configure_optimizers(self) -> torch.optim.Optimizer:
         logging.info("Configuring optimizer ...")
