@@ -71,7 +71,7 @@ def create_st_grid(adata: anndata,
     else:
         logging.info(
             "No batch column specified or found in adata.obs. "
-            "We treat all data as coming from a single dataset."
+            "We treat all data as coming from a single tissue slice."
         )
         batch_labels = np.zeros(len(x_array), dtype=int)
     

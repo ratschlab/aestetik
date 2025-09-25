@@ -9,6 +9,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.modules.aestetik_module import AESTETIKModel
 from aestetik.callbacks.callbacks import LossHistoryCallback
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from aestetik.utils.utils_clustering import clustering
 from aestetik.utils.utils_grid import fix_seed
 from aestetik.utils.utils_data import build_grid
@@ -17,6 +18,7 @@ from typing import Literal
 from typing import Union
 from typing import List
 from typing import Optional
+from typing import Dict
 
 
 class AESTETIK:
@@ -179,7 +181,9 @@ class AESTETIK:
             used_obsm_transcriptomics: str = "X_pca_transcriptomics",
             used_obsm_morphology: str = "X_pca_morphology",
             used_obsm_combined: str = "X_pca",
-            used_obs_batch: Optional[str] = None
+            used_obs_batch: Optional[str] = None,
+            validation_split: float = 0.0,
+            early_stopping_params: Optional[dict] = None
             ) -> None:
         """
         Trains the model on the provided AnnData object.
@@ -195,7 +199,13 @@ class AESTETIK:
         used_obsm_combined : str, optional (default="X_pca")
             Key for combined data in `obsm`.
         used_obs_batch: Optional[str], optional (default=None)
-            Key for column in `obs` that differentiates among experiments or batches.
+            Key for column in `obs` that contains sample labels.
+        validation_split : float, optional (default=0.0)
+            Size of the validation set. It should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the validation split.
+        early_stopping_params : dict, optional
+            Dictionary with parameters for EarlyStopping callback. Optional keys:
+                - 'min_delta': float (default=0.0)
+                - 'patience': int (default=3)
         """
         self._validate_fit_inputs(X=X,
                                   used_obsm_transcriptomics=used_obsm_transcriptomics,
@@ -213,17 +223,19 @@ class AESTETIK:
                                         clustering_params=self.clustering_params,
                                         grid_params=self.grid_params,
                                         loss_regularization_params=self.loss_regularization_params,
-                                        data_handling_params=self.data_handling_params)
-        
+                                        data_handling_params=self.data_handling_params,
+                                        validation_split=validation_split)
+    
         self.lit_aestetik_model = self._build_model(datamodule=datamodule)
 
+        callbacks = self._create_callbacks(early_stopping_params=early_stopping_params, validation_split=validation_split)
+        
         logging.info("Fit AESTETIKModel ...")
-        loss_callback = LossHistoryCallback()
         self.trainer = Trainer(max_epochs=self.training_params["max_epochs"],
-                               callbacks=[loss_callback],
-                               num_sanity_val_steps=0)
+                                callbacks=callbacks,
+                                num_sanity_val_steps=0)
         self.trainer.fit(self.lit_aestetik_model, datamodule=datamodule)
-        self.losses = loss_callback.losses
+        self.losses = callbacks[0].losses
 
     def predict(self,
                 X: anndata.AnnData,
@@ -247,7 +259,7 @@ class AESTETIK:
         used_obsm_morphology : str, optional (default="X_pca_morphology")
             Key for morphology data in `obsm`.
         used_obs_batch: Optional[str], optional (default=None)
-            Key for column in `obs` that differentiates among experiments or batches.
+            Key for column in `obs` that contains sample labels.
         save_emb : str, optional (default="AESTETIK")
             Key for saving embeddings.
         cluster: bool, optional (default=True)
@@ -275,6 +287,7 @@ class AESTETIK:
                     used_obsm_morphology: str = "X_pca_morphology",
                     used_obsm_combined: str = "X_pca",
                     used_obs_batch: Optional[str] = None,
+                    validation_split: float = 0.0,
                     save_emb: str = "AESTETIK",
                     num_repeats: int = 1000,
                     cluster: bool = True) -> None:
@@ -292,7 +305,9 @@ class AESTETIK:
         used_obsm_combined : str, optional (default="X_pca")
             Key for combined data in `obsm`.
         used_obs_batch: Optional[str], optional (default=None)
-            Key for column in `obs` that differentiates among experiments or batches.
+            Key for column in `obs` that contains sample labels.
+        validation_split : float, optional (default=0.0)
+            Size of the validation set. It should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the validation split.
         save_emb : str, optional (default="AESTETIK")
             Key for saving embeddings.
         num_repeats: int, optional (default=1000)
@@ -304,7 +319,8 @@ class AESTETIK:
                  used_obsm_transcriptomics=used_obsm_transcriptomics,
                  used_obsm_morphology=used_obsm_morphology,
                  used_obsm_combined=used_obsm_combined,
-                 used_obs_batch=used_obs_batch)
+                 used_obs_batch=used_obs_batch,
+                 validation_split=validation_split)
                     
         self._set_predict_params(num_repeats=num_repeats)
         all_latent_space = self._compute_latent_space(X,
@@ -429,6 +445,43 @@ class AESTETIK:
         return DataLoader(dataset, 
                           shuffle=False,
                           **self.dataloader_params)
+
+    def _create_callbacks(self,
+        validation_split: float,
+        early_stopping_params: Optional[dict] = None) -> list:
+
+        callbacks = []
+        loss_callback = LossHistoryCallback()
+        callbacks.append(loss_callback)
+        
+        if validation_split > 0.0: 
+            early_stopping_params = self._create_early_stopping_params(early_stopping_params)
+            early_stop_callback = EarlyStopping(**early_stopping_params)
+            checkpoint_callback = ModelCheckpoint(
+                monitor="val_loss",
+                mode="min",
+                save_top_k=1,
+                filename="best-checkpoint",
+            )
+            callbacks.extend([early_stop_callback, checkpoint_callback])
+        return callbacks
+
+    def _create_early_stopping_params(self,
+        user_params: Optional[Dict] = None) -> Dict:
+
+        default_params = {
+            "monitor": "val_loss",
+            "mode": "min",
+            "patience": 5
+        }
+        if user_params is None:
+            user_params = {}
+        for forbidden_key in ["monitor", "mode"]:
+            if forbidden_key in user_params:
+                user_params.pop(forbidden_key)
+                logging.info(f"Removed forbidden key '{forbidden_key}' from early_stopping_params to enforce fixed value.")
+        
+        return {**default_params, **user_params}
 
     # ================================================================= #
     #           Private Prediction and Postprocessing Methods           #

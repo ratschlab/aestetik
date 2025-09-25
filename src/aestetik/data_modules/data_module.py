@@ -4,6 +4,7 @@ import lightning as L
 
 from aestetik.utils.utils_data import prepare_input_for_model
 from aestetik.dataloader import CustomDataset
+from torch.utils.data import random_split
 
 from typing import Optional
 
@@ -11,6 +12,7 @@ from typing import Optional
 class AESTETIKDataModule(L.LightningDataModule):
     def __init__(self,
                  adata: anndata,
+                 validation_split: float,
                  used_obsm_transcriptomics: str,
                  used_obsm_morphology: str,
                  used_obsm_combined: str,
@@ -19,7 +21,8 @@ class AESTETIKDataModule(L.LightningDataModule):
                  grid_params: dict,
                  loss_regularization_params: dict,
                  data_handling_params: dict,
-                 used_obs_batch: Optional[str] = None):
+                 used_obs_batch: Optional[str] = None,
+                ):
         super().__init__()
         """
         Parameters
@@ -71,9 +74,11 @@ class AESTETIKDataModule(L.LightningDataModule):
                     Size of the training set. If float, should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the train split. If int, represents the absolute number of train samples. If None, the value is automatically set to the complement of the test size.
         used_obs_batch: Optional[str], optional (default=None)
             Key for column in `obs` that differentiates among experiments or batches.
-
+        validation_split: float
+            Size of the validation set. It should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the validation split.
         """
         self.adata = adata 
+        self.validation_split = validation_split
         self.used_obsm = {
                         "used_obsm_transcriptomics": used_obsm_transcriptomics,
                         "used_obsm_morphology": used_obsm_morphology,
@@ -108,12 +113,37 @@ class AESTETIKDataModule(L.LightningDataModule):
                                      compute_transcriptomics_list=(self.loss_regularization_params["transcriptomics_weight"] > 0),
                                      compute_morphology_list=(self.loss_regularization_params["morphology_weight"] > 0))
 
+        if stage == "fit" or stage is None:
+            if self.validation_split > 0.0:
+                val_len = int(len(self.dataset) * self.validation_split)
+                train_len = len(self.dataset) - val_len
+
+                if train_len == 0:
+                    raise ValueError(
+                        f"Training set length is zero after applying validation_split={self.validation_split}. "
+                        "Please decrease validation_split or provide more data."
+                    )
+                if val_len == 0 and self.validation_split > 0:
+                    raise ValueError(
+                        f"Validation set length is zero after applying validation_split={self.validation_split}. "
+                        "Please increase validation_split or provide more data."
+                    )
+                self.train_dataset, self.val_dataset = random_split(self.dataset, [train_len, val_len])
+            else:
+                self.train_dataset = self.dataset
+                self.val_dataset = None
+
 
     def train_dataloader(self) -> torch.utils.data.DataLoader:
         return torch.utils.data.DataLoader(dataset=self.dataset,
                                            **self.dataloader_params,
                                            shuffle=True)
-        
+
+    def val_dataloader(self) -> torch.utils.data.DataLoader:
+        if self.val_dataset is None:
+            return iter([])
+        return torch.utils.data.DataLoader(self.val_dataset, **self.dataloader_params, shuffle=False)
+
     def _validate_params(self) -> None:
         required = {
             'dataloader_params': ['batch_size', 'num_workers'],
