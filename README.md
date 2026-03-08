@@ -84,6 +84,11 @@ Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to
 
 *This list is automatically updated weekly via [GitHub Actions](.github/workflows/update-citations.yml) using the [Semantic Scholar](https://www.semanticscholar.org/) and [OpenCitations](https://opencitations.net/) APIs.*
 
+## Related Projects
+
+- [DeepSpot](https://github.com/ratschlab/DeepSpot) — Predicts spatial transcriptomics from H&E images at spot-level (Visium) and single-cell (Xenium) resolution. Uses AESTETIK for cross-sample integration.
+- [DeepSpot2Cell](https://github.com/ratschlab/DeepSpot2Cell) — Predicts virtual single-cell spatial transcriptomics from H&E images using spot-level supervision.
+
 ## Citation
 
 In case you found our work useful, please consider citing us:

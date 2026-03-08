@@ -1,0 +1,49 @@
+# AESTETIK
+
+> AESTETIK (AutoEncoder for Spatial Transcriptomics Expression with Topology and Image Knowledge) is a convolutional autoencoder that jointly integrates transcriptomics and morphology information to learn accurate spot representations for spatial transcriptomics data.
+
+## Key Facts
+
+- Learns multi-modal spot representations from spatial transcriptomics and H&E morphology
+- Integrates spatial topology, gene expression, and tissue morphology in a single model
+- Supports cross-sample integration using Harmony, scVI, etc.
+- Won 1st place at Mammoth International Contest On Omics Sciences in Europe 2024
+- Installable via pip: `pip install aestetik`
+- MIT licensed, Python 3.9+, PyTorch Lightning-based
+
+## When to Use AESTETIK
+
+- You have spatial transcriptomics data (e.g., Visium) and want to learn biologically meaningful spot representations
+- You want to integrate transcriptomics with H&E morphology features for downstream clustering or analysis
+- You need to integrate multiple spatial transcriptomics samples across conditions or patients
+
+## Related Projects
+
+- [DeepSpot](https://github.com/ratschlab/DeepSpot): Predicts spatial transcriptomics from H&E images (uses AESTETIK for cross-sample integration)
+- [DeepSpot2Cell](https://github.com/ratschlab/DeepSpot2Cell): Predicts virtual single-cell spatial transcriptomics from H&E images
+
+## Links
+
+- Repository: https://github.com/ratschlab/aestetik
+- Preprint: https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1
+- PyPI: https://pypi.org/project/aestetik/
+
+## Installation
+
+```
+pip install aestetik
+```
+
+## Quick Start
+
+```python
+from aestetik import AESTETIK
+
+model = AESTETIK()
+model.fit(adata)
+adata = model.predict(adata)
+```
+
+## Citation
+
+Nonchev, K., Andani, S., Ficek-Pascual, J., Nowak, M., Sobottka, B., Tumor Profiler Consortium, Koelzer, V.H. and Rätsch, G. (2024). Representation learning for multi-modal spatially resolved transcriptomics data. medRxiv. DOI: 10.1101/2024.06.04.24308256
