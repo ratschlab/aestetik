@@ -1,0 +1,64 @@
+cff-version: 1.2.0
+title: "AESTETIK: AutoEncoder for Spatial Transcriptomics Expression with Topology and Image Knowledge"
+message: "If you use AESTETIK, please cite it using the metadata from this file."
+type: software
+authors:
+  - given-names: Kalin
+    family-names: Nonchev
+  - given-names: Sonali
+    family-names: Andani
+  - given-names: Joanna
+    family-names: Ficek-Pascual
+  - given-names: Marta
+    family-names: Nowak
+  - given-names: Bettina
+    family-names: Sobottka
+  - name: Tumor Profiler Consortium
+  - given-names: Viktor Hendrik
+    family-names: Koelzer
+  - given-names: Gunnar
+    family-names: Rätsch
+repository-code: https://github.com/ratschlab/aestetik
+url: https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1
+license: MIT
+version: 0.1.0
+date-released: "2024-06-04"
+keywords:
+  - spatial-transcriptomics
+  - autoencoder
+  - representation-learning
+  - multimodal
+  - computational-pathology
+  - digital-pathology
+  - histopathology
+  - deep-learning
+  - pytorch
+  - single-cell
+  - bioinformatics
+identifiers:
+  - type: doi
+    value: 10.1101/2024.06.04.24308256
+    description: medRxiv preprint
+preferred-citation:
+  type: article
+  title: "Representation learning for multi-modal spatially resolved transcriptomics data"
+  authors:
+    - given-names: Kalin
+      family-names: Nonchev
+    - given-names: Sonali
+      family-names: Andani
+    - given-names: Joanna
+      family-names: Ficek-Pascual
+    - given-names: Marta
+      family-names: Nowak
+    - given-names: Bettina
+      family-names: Sobottka
+    - name: Tumor Profiler Consortium
+    - given-names: Viktor Hendrik
+      family-names: Koelzer
+    - given-names: Gunnar
+      family-names: Rätsch
+  doi: 10.1101/2024.06.04.24308256
+  url: https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1
+  journal: medRxiv
+  year: 2024

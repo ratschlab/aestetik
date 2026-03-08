@@ -1,4 +1,8 @@
 [![Downloads](https://static.pepy.tech/badge/aestetik)](https://pepy.tech/project/aestetik)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![medRxiv](https://img.shields.io/badge/medRxiv-2024.06.04.24308256-blue)](https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1)
+
 # AESTETIK: AutoEncoder for Spatial Transcriptomics Expression with Topology and Image Knowledge
 
 This model is part of the paper "Representation learning for multi-modal spatially resolved transcriptomics data".

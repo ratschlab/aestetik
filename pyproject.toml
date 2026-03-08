@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "aestetik"
+version = "0.1.0"
+description = "AESTETIK: Convolutional autoencoder for learning spot representations from spatial transcriptomics and morphology data"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    {name = "Kalin Nonchev"},
+]
+keywords = [
+    "spatial-transcriptomics",
+    "autoencoder",
+    "representation-learning",
+    "multimodal",
+    "computational-pathology",
+    "digital-pathology",
+    "histopathology",
+    "deep-learning",
+    "pytorch",
+    "single-cell",
+    "bioinformatics",
+    "spatial-biology",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+[project.urls]
+Homepage = "https://github.com/ratschlab/aestetik"
+Repository = "https://github.com/ratschlab/aestetik"
+"Bug Tracker" = "https://github.com/ratschlab/aestetik/issues"
+"Preprint" = "https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1"
