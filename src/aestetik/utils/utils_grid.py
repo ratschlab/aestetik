@@ -177,7 +177,12 @@ def _create_spot(spot_idx: int,
     
     median_spot = np.nanmedian(grid, axis=(0, 1))
     nan_indices = np.where(np.isnan(grid))
-    grid[nan_indices] = np.take(median_spot, nan_indices[1])
+    # `grid` has shape (W, W, D); `nan_indices` is a 3-tuple of
+    # (row, col, embedding_dim) coords. `median_spot` has shape (D,) so
+    # the per-NaN-cell fill must come from the **embedding-dim** axis,
+    # not the column axis. The previous `nan_indices[1]` could
+    # IndexError when W > D and silently corrupted values when W <= D.
+    grid[nan_indices] = np.take(median_spot, nan_indices[2])
 
     return grid
 
