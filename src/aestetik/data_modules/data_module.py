@@ -135,7 +135,7 @@ class AESTETIKDataModule(L.LightningDataModule):
 
 
     def train_dataloader(self) -> torch.utils.data.DataLoader:
-        return torch.utils.data.DataLoader(dataset=self.dataset,
+        return torch.utils.data.DataLoader(dataset=self.train_dataset,
                                            **self.dataloader_params,
                                            shuffle=True)
 
