@@ -139,7 +139,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         # Retrieve the anchor, anchor label for transcriptomics, and anchor label for morphology
         anchor, anchor_label_transcriptomics, anchor_label_morphology = self.dataset[
-            idx], self.label_transcriptomics[idx], self.label_morphology[idx]
+            idx], self.label_transcriptomics.iloc[idx], self.label_morphology.iloc[idx]
 
         # Compute positive and negative indices based on the compute method
         pos_transcriptomics_indices, neg_transcriptomics_indices, pos_morphology_indices, neg_morphology_indices = self.compute_method(
