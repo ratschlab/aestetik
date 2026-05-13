@@ -1,8 +1,6 @@
 from sklearn.decomposition import PCA
-from matplotlib import pylab as plt
 from tqdm import tqdm
 import numpy as np
-import pyvips
 
 format_to_dtype = {
     'uchar': np.uint8,
@@ -60,6 +58,8 @@ def extract_morphology_embeddings(
         embeddings : np.ndarray
             The extracted morphology embeddings.
     """
+
+     import pyvips  # optional dep: install via the [vips] extra
 
      model.to(device)
      image = pyvips.Image.new_from_file(img_path)

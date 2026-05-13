@@ -1,4 +1,3 @@
-import plotnine as p9
 import pandas as pd
 import scanpy as sc
 import numpy as np
@@ -30,6 +29,7 @@ def find_optimal_n_clusters(adata, start=2, end=10, suggested_n=None):
     suggested_n : int or None, optional (default=None)
         A suggested number of clusters to consider, which can be used as a reference.
     """
+    import plotnine as p9  # optional dep: install via the [viz] extra
     scores = []
     for n_clusters in tqdm(range(start, end)):
 

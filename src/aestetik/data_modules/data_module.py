@@ -135,7 +135,10 @@ class AESTETIKDataModule(L.LightningDataModule):
 
 
     def train_dataloader(self) -> torch.utils.data.DataLoader:
-        return torch.utils.data.DataLoader(dataset=self.dataset,
+        # Use the split train_dataset so validation_split is honoured
+        # (issue #8). When validation_split == 0, setup() assigns
+        # self.train_dataset = self.dataset.
+        return torch.utils.data.DataLoader(dataset=self.train_dataset,
                                            **self.dataloader_params,
                                            shuffle=True)
 

@@ -175,9 +175,15 @@ def _create_spot(spot_idx: int,
 
         grid[grid_row, grid_column] = embs[indices_in_batch[neighbor_idx]]
     
+    # Impute NaNs with the per-embedding-dimension median. grid has shape
+    # (window_size, window_size, dim_emb); nan_indices[2] gives the
+    # embedding dimension of each NaN entry, while nan_indices[1] would
+    # give a column position - silently corrupting data when window_size
+    # <= dim_emb and crashing when window_size > dim_emb (issue #9).
     median_spot = np.nanmedian(grid, axis=(0, 1))
     nan_indices = np.where(np.isnan(grid))
-    grid[nan_indices] = np.take(median_spot, nan_indices[1])
+    if nan_indices[0].size:
+        grid[nan_indices] = np.take(median_spot, nan_indices[2])
 
     return grid
 

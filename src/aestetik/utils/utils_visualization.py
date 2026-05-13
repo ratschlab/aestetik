@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import squidpy as sq
 import anndata
 import numpy as np
-import pyvips
 import math
 import logging
 from sklearn.metrics.cluster import adjusted_rand_score
@@ -11,7 +10,7 @@ from scipy.spatial.distance import cdist
 
 from aestetik.AESTETIK import AESTETIK
 
-from typing import Optional 
+from typing import Optional
 
 format_to_dtype = {
     'uchar': np.uint8,
@@ -127,7 +126,7 @@ def _plot_spatial_centroids_and_distance(adata,
 
 
 def _plot_spatial_scatter_ari(adata,
-                              used_obsm_transcritpomics,
+                              used_obsm_transcriptomics,
                               used_obsm_morphology,
                               save_emb,
                               img_alpha: float = 0.6,
@@ -135,32 +134,33 @@ def _plot_spatial_scatter_ari(adata,
                               ncols: int = 5):
 
     label_list = [
-        f"{used_obsm_transcritpomics}_cluster",
+        f"{used_obsm_transcriptomics}_cluster",
         f"{used_obsm_morphology}_cluster",
         f"{save_emb}_cluster"
     ]
-    lebel_list = [l for l in label_list if l in adata.obs.columns]
+    label_list = [l for l in label_list if l in adata.obs.columns]
 
     ari_list = [
         adjusted_rand_score(
             adata.obs.ground_truth,
-            adata.obs[label].values) for label in lebel_list]
+            adata.obs[label].values) for label in label_list]
 
     title = [
         f"{label}, ARI:{ari:.2f}" for label,
         ari in zip(
-            lebel_list,
+            label_list,
             ari_list)]
 
     sq.pl.spatial_scatter(
         adata,
         img_alpha=img_alpha,
-        color=["ground_truth", *lebel_list],
+        color=["ground_truth", *label_list],
         title=["ground_truth", *title],
         size=dot_size,
         ncols=ncols)
 
 def _plot_spots(img_path, adata, indeces_to_plot, spot_diameter_fullres, label=None):
+    import pyvips  # optional dep: only required for spot visualisation
 
     image = pyvips.Image.new_from_file(img_path)
     tab = adata.obs.iloc[indeces_to_plot]

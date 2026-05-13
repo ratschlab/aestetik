@@ -54,10 +54,18 @@ We can also install aestetik offline.
 ```
 git clone https://github.com/ratschlab/aestetik
 cd aestetik
-python setup.py install
+pip install .
 ```
 
-##### NB: Please ensure you have installed [pyvips](https://github.com/libvips/pyvips) depending on your machine's requirements. We suggest installing pyvips through conda:
+Optional extras:
+
+```
+pip install ".[vips]"   # enables pyvips-based morphology helpers
+pip install ".[viz]"    # enables plotnine-based cluster-search plot
+pip install ".[test]"   # test dependencies (pytest)
+```
+
+##### NB: The morphology spot-extraction helpers require [pyvips](https://github.com/libvips/pyvips). We recommend installing pyvips through conda:
 ```
 conda install conda-forge::pyvips
 ```

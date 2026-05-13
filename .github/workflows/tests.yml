@@ -1,0 +1,41 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package and test deps
+        run: |
+          python -m pip install --upgrade pip
+          # CPU-only torch for CI (avoids pulling CUDA wheels).
+          pip install --index-url https://download.pytorch.org/whl/cpu \
+                      'torch>=2.0' 'torchvision>=0.15'
+          pip install -e '.[test]'
+
+      - name: Run fast tests
+        run: pytest -m "not slow"
+
+      - name: Run integration tests
+        run: pytest -m slow
+        # Don't fail the whole matrix on integration flakes; surface
+        # them as warnings until the suite is stabilised.
+        continue-on-error: true

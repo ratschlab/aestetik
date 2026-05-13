@@ -5,20 +5,22 @@ channels:
   - pytorch
 
 dependencies:
-  - python==3.9
+  - python>=3.9,<3.13
   - pip
-  - pytorch
-  - numpy
-  - pandas
-  - scipy
-  - anndata
-  - scanpy
-  - squidpy
-  - matplotlib
-  - torchvision
-  - pyvips
-  - scikit-learn
-  - pyvips
-  
+  - pytorch>=2.0
+  - torchvision>=0.15
+  - lightning>=2.0
+  - numpy>=1.23
+  - pandas>=1.5
+  - scipy>=1.10
+  - anndata>=0.9
+  - scanpy>=1.9
+  - squidpy>=1.2
+  - matplotlib>=3.7
+  - scikit-learn>=1.2
+  - joblib>=1.2
+  - tqdm>=4.64
+  - pyvips>=2.2
+  - pytest>=7.0
   - pip:
-      - plotnine
+      - plotnine>=0.10
