@@ -1,24 +1,22 @@
+import logging
+import os
+from typing import Dict, List, Literal, Optional, Union
+
 import anndata
 import numpy as np
 import torch
-import logging
-import multiprocessing
 from lightning.pytorch import Trainer
-from torch.utils.data import TensorDataset, DataLoader
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
+from torch.utils.data import DataLoader, TensorDataset
 
+from aestetik.callbacks.callbacks import LossHistoryCallback
 from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.modules.aestetik_module import AESTETIKModel
-from aestetik.callbacks.callbacks import LossHistoryCallback
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from aestetik.utils.utils_clustering import clustering
-from aestetik.utils.utils_grid import fix_seed
 from aestetik.utils.utils_data import build_grid
+from aestetik.utils.utils_grid import fix_seed
 
-from typing import Literal
-from typing import Union
-from typing import List
-from typing import Optional
-from typing import Dict
+logger = logging.getLogger(__name__)
 
 
 class AESTETIK:
@@ -161,7 +159,7 @@ class AESTETIK:
         }
 
         self.data_handling_params = {
-            "n_jobs": n_jobs if n_jobs != -1 else int(multiprocessing.cpu_count()),
+            "n_jobs": n_jobs if n_jobs != -1 else (os.cpu_count() or 1),
             "train_size": train_size
         }
         
@@ -213,7 +211,7 @@ class AESTETIK:
         self._set_fit_params(X=X,
                              used_obsm_transcriptomics=used_obsm_transcriptomics)
 
-        logging.info("Initializing datamodule ...")
+        logger.info("Initializing datamodule ...")
         datamodule = AESTETIKDataModule(X,
                                         used_obsm_transcriptomics=used_obsm_transcriptomics,
                                         used_obsm_morphology=used_obsm_morphology,
@@ -230,7 +228,7 @@ class AESTETIK:
 
         callbacks = self._create_callbacks(early_stopping_params=early_stopping_params, validation_split=validation_split)
         
-        logging.info("Fit AESTETIKModel ...")
+        logger.info("Fit AESTETIKModel ...")
         self.trainer = Trainer(max_epochs=self.training_params["max_epochs"],
                                 callbacks=callbacks,
                                 num_sanity_val_steps=0)
@@ -245,23 +243,28 @@ class AESTETIK:
                 save_emb: str = "AESTETIK",
                 num_repeats: int = 1000,
                 cluster: bool = True) -> None:
-        """
-        Computes spot representations for all spots in X. Then we optionally cluster them into groups.
-        
+        """Compute spot representations for ``X`` and optionally cluster them.
+
+        The fitted embeddings are written **in place** to
+        ``X.obsm[save_emb]``; cluster assignments (when ``cluster=True``)
+        are written to ``X.obs[f"{save_emb}_cluster"]``. The method
+        returns ``None``.
+
         Parameters
         ----------
         X : anndata.AnnData
-            AnnData object.
+            AnnData object. Modified in place.
         num_repeats: int, optional (default=1000)
-            Number of repeats for stochastic prediction.
+            Number of stochastic forward passes whose latent codes are
+            averaged for the final embedding.
         used_obsm_transcriptomics : str, optional (default="X_pca_transcriptomics")
-            Key for transcriptomics data in `obsm`.
+            Key for transcriptomics data in ``X.obsm``.
         used_obsm_morphology : str, optional (default="X_pca_morphology")
-            Key for morphology data in `obsm`.
+            Key for morphology data in ``X.obsm``.
         used_obs_batch: Optional[str], optional (default=None)
-            Key for column in `obs` that contains sample labels.
+            Key for column in ``X.obs`` that contains sample labels.
         save_emb : str, optional (default="AESTETIK")
-            Key for saving embeddings.
+            Key for the embedding column written under ``X.obsm``.
         cluster: bool, optional (default=True)
             Whether to perform clustering on the latent space.
         """
@@ -417,11 +420,11 @@ class AESTETIK:
         obsm_morphology_dim_target = self.grid_params["num_input_channels"] - self.grid_params["obsm_transcriptomics_dim"]
 
         if X.obsm[used_obsm_transcriptomics].shape[1] > self.grid_params["obsm_transcriptomics_dim"]:
-            logging.info(f"Cut down transcriptomics dimensionality for {used_obsm_transcriptomics}")
+            logger.info(f"Cut down transcriptomics dimensionality for {used_obsm_transcriptomics}")
             X.obsm[used_obsm_transcriptomics] = X.obsm[used_obsm_transcriptomics][:, :self.grid_params["obsm_transcriptomics_dim"]]
 
         if X.obsm[used_obsm_morphology].shape[1] > obsm_morphology_dim_target:
-            logging.info(f"Cut down morphology dimensionality for {used_obsm_morphology}")
+            logger.info(f"Cut down morphology dimensionality for {used_obsm_morphology}")
             X.obsm[used_obsm_morphology] = X.obsm[used_obsm_morphology][:, :obsm_morphology_dim_target]
     
 
@@ -479,7 +482,7 @@ class AESTETIK:
         for forbidden_key in ["monitor", "mode"]:
             if forbidden_key in user_params:
                 user_params.pop(forbidden_key)
-                logging.info(f"Removed forbidden key '{forbidden_key}' from early_stopping_params to enforce fixed value.")
+                logger.info(f"Removed forbidden key '{forbidden_key}' from early_stopping_params to enforce fixed value.")
         
         return {**default_params, **user_params}
 
@@ -524,7 +527,7 @@ class AESTETIK:
     # ================================================================= #
     def _build_model(self,
                      datamodule: AESTETIKDataModule) -> AESTETIKModel:
-        logging.info("Build AESTETIKModel ...")
+        logger.info("Build AESTETIKModel ...")
 
         training_step_params = {
             "rec_alpha": self.loss_regularization_params["rec_alpha"],

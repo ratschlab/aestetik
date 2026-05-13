@@ -1,16 +1,18 @@
-import matplotlib.pyplot as plt
-import squidpy as sq
-import anndata
-import numpy as np
-import math
 import logging
+import math
+from typing import Optional
+
+import anndata
+import matplotlib.pyplot as plt
+import numpy as np
+import squidpy as sq
+from scipy.spatial.distance import cdist
 from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.neighbors import NearestCentroid
-from scipy.spatial.distance import cdist
 
 from aestetik.AESTETIK import AESTETIK
 
-from typing import Optional
+logger = logging.getLogger(__name__)
 
 format_to_dtype = {
     'uchar': np.uint8,
@@ -198,7 +200,7 @@ def _get_spot(image, x, y, spot_diameter_fullres):
 def _compute_centroid(adata: anndata.AnnData,
                       save_emb: str,
                       topN: int = 5) -> np.ndarray:
-    logging.info("Loading centroid info...")
+    logger.info("Loading centroid info...")
     nc = NearestCentroid()
     nc.fit(adata.obsm[save_emb], adata.obs[f"{save_emb}_cluster"])
 
@@ -221,7 +223,7 @@ def _compute_centroid_morphology(img_path: str,
                                  topN_centroid_idx: np.ndarray,
                                  spot_diameter_fullres: int,
                                  save_emb: str) -> None: 
-    logging.info("Loading centroid morphology spots...")
+    logger.info("Loading centroid morphology spots...")
     if img_path and spot_diameter_fullres:
         _plot_spots(
                     img_path,

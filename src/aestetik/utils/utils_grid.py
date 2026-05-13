@@ -13,6 +13,8 @@ from sklearn.preprocessing import MinMaxScaler
 
 from typing import Dict, List, Optional, Tuple
 
+
+logger = logging.getLogger(__name__)
 format_to_dtype = {
     'uchar': np.uint8,
     'char': np.int8,
@@ -69,7 +71,7 @@ def create_st_grid(adata: anndata,
     if used_obs_batch is not None and used_obs_batch in adata.obs.columns:
         batch_labels = adata.obs[used_obs_batch].astype("category").cat.codes.to_numpy()
     else:
-        logging.info(
+        logger.info(
             "No batch column specified or found in adata.obs. "
             "We treat all data as coming from a single tissue slice."
         )

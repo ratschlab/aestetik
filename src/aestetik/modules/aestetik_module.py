@@ -11,6 +11,8 @@ from typing import Tuple
 from typing import List 
 from typing import Optional
 
+
+logger = logging.getLogger(__name__)
 class AESTETIKModel(L.LightningModule):
     def __init__(self,
                  datamodule: AESTETIKDataModule,
@@ -161,7 +163,7 @@ class AESTETIKModel(L.LightningModule):
         return batch_latent_space
         
     def configure_optimizers(self) -> torch.optim.Optimizer:
-        logging.info("Configuring optimizer ...")
+        logger.info("Configuring optimizer ...")
         optimizer = torch.optim.Adam(self.model.parameters(),
                                      amsgrad=True,
                                      **self.hparams["optimizer_params"])
@@ -169,7 +171,7 @@ class AESTETIKModel(L.LightningModule):
 
 
     def _validate_params(self) -> None:
-        logging.info("Validate parameters in LitAESTETIKModel ...")
+        logger.info("Validate parameters in LitAESTETIKModel ...")
         required = {
             'grid_params': ['obsm_transcriptomics_dim'],
             'model_architecture_params': ['kernel_size','latent_dim',
