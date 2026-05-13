@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import anndata
-import numpy as np
 import pytest
 
 from aestetik.utils.utils_transcriptomics import preprocess_adata
-
 
 # preprocess_adata uses scanpy's seurat_v3 HVG flavor, which requires
 # scikit-misc. Skip the whole module if it's not available.

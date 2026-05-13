@@ -149,7 +149,7 @@ class AESTETIK:
         }
 
         self.loss_regularization_params = {
-            "multi_triplet_loss": multi_triplet_loss, 
+            "multi_triplet_loss": multi_triplet_loss,
             "rec_alpha": rec_alpha,
             "triplet_alpha": triplet_alpha,
             "n_repeats": n_repeats,
@@ -162,7 +162,7 @@ class AESTETIK:
             "n_jobs": n_jobs if n_jobs != -1 else (os.cpu_count() or 1),
             "train_size": train_size
         }
-        
+
 
         self.random_seed = random_seed
         self.lit_aestetik_model: Optional[AESTETIKModel] = None
@@ -172,9 +172,9 @@ class AESTETIK:
 
     # ================================================================= #
     #                       Main API Methods                            #
-    # ================================================================= #    
-    
-    def fit(self, 
+    # ================================================================= #
+
+    def fit(self,
             X: anndata.AnnData,
             used_obsm_transcriptomics: str = "X_pca_transcriptomics",
             used_obsm_morphology: str = "X_pca_morphology",
@@ -223,11 +223,11 @@ class AESTETIK:
                                         loss_regularization_params=self.loss_regularization_params,
                                         data_handling_params=self.data_handling_params,
                                         validation_split=validation_split)
-    
+
         self.lit_aestetik_model = self._build_model(datamodule=datamodule)
 
         callbacks = self._create_callbacks(early_stopping_params=early_stopping_params, validation_split=validation_split)
-        
+
         logger.info("Fit AESTETIKModel ...")
         self.trainer = Trainer(max_epochs=self.training_params["max_epochs"],
                                 callbacks=callbacks,
@@ -283,7 +283,7 @@ class AESTETIK:
                                       save_emb=save_emb,
                                       cluster=cluster,
                                       used_obs_batch=used_obs_batch)
-    
+
     def fit_predict(self,
                     X: anndata.AnnData,
                     used_obsm_transcriptomics: str = "X_pca_transcriptomics",
@@ -318,13 +318,13 @@ class AESTETIK:
         cluster: bool, optional (default=True)
             Whether to perform clustering on the latent space.
         """
-        self.fit(X, 
+        self.fit(X,
                  used_obsm_transcriptomics=used_obsm_transcriptomics,
                  used_obsm_morphology=used_obsm_morphology,
                  used_obsm_combined=used_obsm_combined,
                  used_obs_batch=used_obs_batch,
                  validation_split=validation_split)
-                    
+
         self._set_predict_params(num_repeats=num_repeats)
         all_latent_space = self._compute_latent_space(X,
                                                       built_grid=True)
@@ -336,12 +336,12 @@ class AESTETIK:
 
     # ================================================================= #
     #                      Private Validation Methods                   #
-    # ================================================================= #     
+    # ================================================================= #
     def _validate_fit_inputs(self,
                             X: anndata.AnnData,
                             used_obsm_transcriptomics: str,
                             used_obsm_morphology: str) -> None:
-        
+
         self._validate_obsm_keys(X, [used_obsm_morphology, used_obsm_transcriptomics], "fit")
         self._validate_obs_columns(X, ["x_array", "y_array"], "fit")
 
@@ -368,14 +368,14 @@ class AESTETIK:
                 f"morphology >= {obsm_morphology_dim_target}"
             )
         self._calibrate_predict_inputs(X, used_obsm_transcriptomics, used_obsm_morphology)
-    
+
     def _check_fitted(self) -> None:
         if self.trainer is None or self.lit_aestetik_model is None:
             raise RuntimeError("The model has not been fitted yet. Call 'fit' before 'predict'.")
 
-    def _validate_obsm_keys(self, 
+    def _validate_obsm_keys(self,
                             X: anndata.AnnData,
-                            required_keys: List[str], 
+                            required_keys: List[str],
                             method_name: str) -> None:
         missing = [key for key in required_keys if key not in X.obsm]
         if missing:
@@ -384,9 +384,9 @@ class AESTETIK:
                 f"Available keys: {list(X.obsm.keys())}"
             )
 
-    def _validate_obs_columns(self, 
-                              X: anndata.AnnData, 
-                              required_columns: List[str], 
+    def _validate_obs_columns(self,
+                              X: anndata.AnnData,
+                              required_columns: List[str],
                               method_name: str) -> None:
         missing = [column for column in required_columns if column not in X.obs]
         if missing:
@@ -403,10 +403,10 @@ class AESTETIK:
                         used_obsm_transcriptomics: str) -> None:
         if self.dataloader_params["batch_size"] is None:
             self.dataloader_params["batch_size"] = min(2 ** 13, len(X))
-        
+
         self.grid_params["obsm_transcriptomics_dim"] = X.obsm[used_obsm_transcriptomics].shape[1]
-    
-    def _set_predict_params(self, 
+
+    def _set_predict_params(self,
                             num_repeats: int) -> None:
         self.lit_aestetik_model.predict_params["num_repeats"] = num_repeats
 
@@ -426,7 +426,7 @@ class AESTETIK:
         if X.obsm[used_obsm_morphology].shape[1] > obsm_morphology_dim_target:
             logger.info(f"Cut down morphology dimensionality for {used_obsm_morphology}")
             X.obsm[used_obsm_morphology] = X.obsm[used_obsm_morphology][:, :obsm_morphology_dim_target]
-    
+
 
     def _create_predict_dataloader(self,
         X: anndata.AnnData,
@@ -434,18 +434,18 @@ class AESTETIK:
         used_obsm_morphology: Optional[str] = None,
         used_obs_batch: Optional[str] = None,
         built_grid: bool = False) -> DataLoader:
-        
+
         if not built_grid:
-            build_grid(X, 
+            build_grid(X,
                    used_obsm_transcriptomics=used_obsm_transcriptomics,
                    used_obsm_morphology=used_obsm_morphology,
                    used_obs_batch=used_obs_batch,
                    window_size=self.grid_params["morphology_dim"],
                    n_jobs=self.data_handling_params["n_jobs"])
-        
+
         all_spots = torch.from_numpy(X.obsm["X_st_grid"].astype(np.float32))
         dataset = TensorDataset(all_spots)
-        return DataLoader(dataset, 
+        return DataLoader(dataset,
                           shuffle=False,
                           **self.dataloader_params)
 
@@ -456,8 +456,8 @@ class AESTETIK:
         callbacks = []
         loss_callback = LossHistoryCallback()
         callbacks.append(loss_callback)
-        
-        if validation_split > 0.0: 
+
+        if validation_split > 0.0:
             early_stopping_params = self._create_early_stopping_params(early_stopping_params)
             early_stop_callback = EarlyStopping(**early_stopping_params)
             checkpoint_callback = ModelCheckpoint(
@@ -483,14 +483,14 @@ class AESTETIK:
             if forbidden_key in user_params:
                 user_params.pop(forbidden_key)
                 logger.info(f"Removed forbidden key '{forbidden_key}' from early_stopping_params to enforce fixed value.")
-        
+
         return {**default_params, **user_params}
 
     # ================================================================= #
     #           Private Prediction and Postprocessing Methods           #
-    # ================================================================= # 
+    # ================================================================= #
     def _compute_latent_space(self,
-                              X: anndata.AnnData, 
+                              X: anndata.AnnData,
                               used_obsm_transcriptomics: Optional[str] = None,
                               used_obsm_morphology: Optional[str] = None,
                               used_obs_batch: Optional[str] = None,
@@ -512,7 +512,7 @@ class AESTETIK:
                                  cluster: bool,
                                  used_obs_batch: str) -> None:
         X.obsm[save_emb] = latent_space.cpu().numpy()
-        
+
         if cluster:
             clustering(X,
             used_obsm=save_emb,

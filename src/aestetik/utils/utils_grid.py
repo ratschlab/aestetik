@@ -1,18 +1,16 @@
-import numpy as np
-import lightning as L
-import anndata
 import logging
-import random
-import torch
 import os
-
-from joblib import Parallel, delayed
-from torch.backends import cudnn
-from scipy.spatial import KDTree
-from sklearn.preprocessing import MinMaxScaler
-
+import random
 from typing import Dict, List, Optional, Tuple
 
+import anndata
+import lightning as L
+import numpy as np
+import torch
+from joblib import Parallel, delayed
+from scipy.spatial import KDTree
+from sklearn.preprocessing import MinMaxScaler
+from torch.backends import cudnn
 
 logger = logging.getLogger(__name__)
 format_to_dtype = {
@@ -76,11 +74,11 @@ def create_st_grid(adata: anndata,
             "We treat all data as coming from a single tissue slice."
         )
         batch_labels = np.zeros(len(x_array), dtype=int)
-    
+
     trees, batch_to_indices = _build_trees(x_array=x_array,
                                            y_array=y_array,
                                            batch_labels=batch_labels)
-    
+
     half = window_size // 2
     offsets_flat = _compute_offsets_flat(start=-half, end=-half + window_size)
 
@@ -120,8 +118,8 @@ def _build_trees(x_array: np.ndarray,
         spot_indices = np.where(batch_labels == batch_id)[0]
         coords = np.column_stack([x_array[spot_indices], y_array[spot_indices]])
         trees[batch_id] = KDTree(coords)
-        batch_to_indices[batch_id] = spot_indices 
-    
+        batch_to_indices[batch_id] = spot_indices
+
     return trees, batch_to_indices
 
 def _create_batch_grid(spot_indices: np.ndarray,
@@ -129,7 +127,7 @@ def _create_batch_grid(spot_indices: np.ndarray,
                        y_array: np.ndarray,
                        batch_labels: np.ndarray,
                        embs: np.ndarray,
-                       trees: Dict, 
+                       trees: Dict,
                        batch_to_indices: Dict,
                        offsets_flat: np.ndarray,
                        window_size: int) -> List[np.ndarray]:
@@ -150,9 +148,9 @@ def _create_batch_grid(spot_indices: np.ndarray,
 def _create_spot(spot_idx: int,
                  x_array: np.ndarray,
                  y_array: np.ndarray,
-                 batch_labels: np.ndarray, 
+                 batch_labels: np.ndarray,
                  embs:np.ndarray,
-                 trees: Dict, 
+                 trees: Dict,
                  batch_to_indices: Dict,
                  offsets_flat: np.ndarray,
                  window_size: int) -> np.ndarray:
@@ -160,9 +158,9 @@ def _create_spot(spot_idx: int,
     Creates a grid for a single spot.
     """
     x_center, y_center, batch_id = x_array[spot_idx], y_array[spot_idx], batch_labels[spot_idx]
-    center = np.array([x_center, y_center]) 
-  
-    grid = np.full((window_size, window_size, embs.shape[1]), 
+    center = np.array([x_center, y_center])
+
+    grid = np.full((window_size, window_size, embs.shape[1]),
                     fill_value=np.nan,
                     dtype=embs.dtype)
     indices_in_batch = batch_to_indices[batch_id]
@@ -176,7 +174,7 @@ def _create_spot(spot_idx: int,
                                            shape=(window_size, window_size))
 
         grid[grid_row, grid_column] = embs[indices_in_batch[neighbor_idx]]
-    
+
     # Impute NaNs with the per-embedding-dimension median. grid has shape
     # (window_size, window_size, dim_emb); nan_indices[2] gives the
     # embedding dimension of each NaN entry, while nan_indices[1] would

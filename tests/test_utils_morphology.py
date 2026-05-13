@@ -6,13 +6,10 @@ test runs on machines without the morphology stack.
 """
 from __future__ import annotations
 
-import io
-
 import numpy as np
 import pytest
 import torch
 from torch import nn
-
 
 pyvips = pytest.importorskip(
     "pyvips", reason="pyvips (and libvips) required for morphology helpers"

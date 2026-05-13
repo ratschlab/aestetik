@@ -4,8 +4,8 @@ Regression test for issue #6: five subpackages were missing
 ``__init__.py`` files and were silently dropped by ``find_packages``.
 """
 import importlib
-import pytest
 
+import pytest
 
 REQUIRED_MODULES = [
     "aestetik",

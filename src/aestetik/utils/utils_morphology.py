@@ -1,6 +1,6 @@
+import numpy as np
 from sklearn.decomposition import PCA
 from tqdm import tqdm
-import numpy as np
 
 format_to_dtype = {
     'uchar': np.uint8,

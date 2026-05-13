@@ -1,16 +1,11 @@
 import logging
-import numpy as np
-import anndata
+from typing import Literal, Optional, Tuple, Union
 
-from typing import Literal
-from typing import Union
-from typing import Tuple
-from typing import Optional
+import anndata
+import numpy as np
 
 from aestetik.utils.utils_clustering import clustering
 from aestetik.utils.utils_grid import create_st_grid
-
-
 
 logger = logging.getLogger(__name__)
 def prepare_input_for_model(
@@ -54,16 +49,16 @@ def prepare_input_for_model(
 
         transcriptomics_weight, morphology_weight = calibrate_transcriptomics_morphology_ratio(
                                                         adata=adata,
-                                                        nCluster=nCluster, 
+                                                        nCluster=nCluster,
                                                         used_obsm_transcriptomics=used_obsm_transcriptomics,
                                                         used_obsm_morphology=used_obsm_morphology,
-                                                        total_weight=total_weight, 
+                                                        total_weight=total_weight,
                                                         morphology_weight=morphology_weight
                                                     )
-        
+
         adata.obsm[used_obsm_combined] = np.concatenate(
                 (adata.obsm[used_obsm_transcriptomics], adata.obsm[used_obsm_morphology]), axis=1)
-        
+
         build_grid(adata,
                    used_obsm_transcriptomics=used_obsm_transcriptomics,
                    used_obsm_morphology=used_obsm_morphology,
@@ -82,7 +77,7 @@ def build_grid(adata: anndata,
     logger.info("Computing transcriptomics grid...")
     X_st_grid_transcriptomics = create_st_grid(
     adata, used_obsm=used_obsm_transcriptomics, window_size=window_size, cpu_count=n_jobs, used_obs_batch=used_obs_batch)
-        
+
     logger.info("Computing morphology grid...")
     X_st_grid_morphology = create_st_grid(
     adata, used_obsm=used_obsm_morphology, window_size=window_size, cpu_count=n_jobs, used_obs_batch=used_obs_batch)
@@ -91,11 +86,11 @@ def build_grid(adata: anndata,
     (X_st_grid_transcriptomics, X_st_grid_morphology), axis=1)
 
 def calibrate_transcriptomics_morphology_ratio(
-    adata: anndata, 
-    nCluster: Union[int, float], 
-    used_obsm_transcriptomics: str, 
-    used_obsm_morphology: str, 
-    total_weight: float, 
+    adata: anndata,
+    nCluster: Union[int, float],
+    used_obsm_transcriptomics: str,
+    used_obsm_morphology: str,
+    total_weight: float,
     morphology_weight: float) -> Tuple[float, float]:
     transcriptomics_weight = total_weight - morphology_weight
 

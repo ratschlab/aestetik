@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 
 from aestetik.utils.utils_grid import (
+    _build_trees,
     _compute_offsets_flat,
     _create_spot,
-    _build_trees,
     create_st_grid,
 )
 

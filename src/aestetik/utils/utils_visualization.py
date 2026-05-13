@@ -104,7 +104,7 @@ def visualize(model: AESTETIK,
 
 # ================================================================= #
 #                    Private Plotting Methods                       #
-# ================================================================= # 
+# ================================================================= #
 def _plot_loss_values(losses):
     plt.xlabel('Iterations')
     plt.ylabel('Loss')
@@ -184,7 +184,7 @@ def _plot_spots(img_path, adata, indeces_to_plot, spot_diameter_fullres, label=N
 
 # ================================================================= #
 #                     Private Extraction Methods                    #
-# ================================================================= # 
+# ================================================================= #
 def _get_spot(image, x, y, spot_diameter_fullres):
     x = x - int(spot_diameter_fullres // 2)
     y = y - int(spot_diameter_fullres // 2)
@@ -196,7 +196,7 @@ def _get_spot(image, x, y, spot_diameter_fullres):
 
 # ================================================================= #
 #              Private Centroid Computation Methods                 #
-# ================================================================= # 
+# ================================================================= #
 def _compute_centroid(adata: anndata.AnnData,
                       save_emb: str,
                       topN: int = 5) -> np.ndarray:
@@ -222,7 +222,7 @@ def _compute_centroid_morphology(img_path: str,
                                  adata: anndata.AnnData,
                                  topN_centroid_idx: np.ndarray,
                                  spot_diameter_fullres: int,
-                                 save_emb: str) -> None: 
+                                 save_emb: str) -> None:
     logger.info("Loading centroid morphology spots...")
     if img_path and spot_diameter_fullres:
         _plot_spots(
@@ -236,7 +236,7 @@ def _compute_centroid_morphology(img_path: str,
 
 # ================================================================= #
 #                    Private Validation Methods                     #
-# ================================================================= # 
+# ================================================================= #
 def _validate_visualize_inputs(
     adata: Optional[anndata.AnnData],
     img_path: Optional[str],
@@ -245,7 +245,7 @@ def _validate_visualize_inputs(
     plot_loss: bool,
     plot_clusters: bool,
     plot_centroid: bool) -> None:
-    
+
     if plot_clusters and adata is None:
         raise ValueError("Cannot plot clusters: 'adata' must be provided (not None)."
                                  "Please specify a valid AnnData object.")

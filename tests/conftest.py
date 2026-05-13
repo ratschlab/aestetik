@@ -18,7 +18,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-
 TEST_DATA_DIR = Path(__file__).resolve().parent.parent / "test_data"
 
 
