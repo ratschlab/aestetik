@@ -130,6 +130,10 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
         Cluster labels computed on the training data.
     transcriptomics_weight_, morphology_weight_ : float
         Post-calibration modality weights.
+    transcriptomics_cluster_, morphology_cluster_ : ndarray of shape (n_obs,)
+        Cluster labels obtained on the raw transcriptomics / morphology
+        PCAs during ``fit``. Useful for comparing the modality-only
+        clusterings with the AESTETIK joint clustering.
     obsm_transcriptomics_dim_ : int
         Width of the transcriptomics obsm seen at fit time.
     num_input_channels_ : int
@@ -309,6 +313,14 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
         self.morphology_weight_ = datamodule.loss_regularization_params["morphology_weight"]
         self.obsm_transcriptomics_dim_ = obsm_transcriptomics_dim
         self.num_input_channels_ = datamodule.adata.obsm["X_st_grid"].shape[1]
+        # Modality-only cluster labels (the pre-AESTETIK baseline). Stored
+        # so callers don't need to recompute them or rely on side effects.
+        self.transcriptomics_cluster_ = datamodule.adata.obs[
+            f"{self.used_obsm_transcriptomics}_cluster"
+        ].to_numpy()
+        self.morphology_cluster_ = datamodule.adata.obs[
+            f"{self.used_obsm_morphology}_cluster"
+        ].to_numpy()
         self.grid_params_ = {
             "morphology_dim": self.window_size,
             "num_input_channels": self.num_input_channels_,
