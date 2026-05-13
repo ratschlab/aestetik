@@ -4,7 +4,6 @@ Covers issue #7 (positional indexing) by exercising __getitem__ both
 with string obs_names and with a non-contiguous train_size split.
 """
 import numpy as np
-import pytest
 
 from aestetik.dataloader import CustomDataset
 

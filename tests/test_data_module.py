@@ -3,8 +3,6 @@
 Covers issue #8: ``train_dataloader`` must use the *split*
 ``train_dataset`` when ``validation_split > 0``.
 """
-import numpy as np
-import pytest
 
 from aestetik.data_modules.data_module import AESTETIKDataModule
 

@@ -1,7 +1,6 @@
 """End-to-end fit_predict smoke test on tiny synthetic data."""
 import logging
 
-import numpy as np
 import pytest
 
 from aestetik import AESTETIK

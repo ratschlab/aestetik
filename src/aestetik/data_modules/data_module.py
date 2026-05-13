@@ -1,12 +1,12 @@
-import anndata
-import torch 
-import lightning as L 
+from typing import Optional
 
-from aestetik.utils.utils_data import prepare_input_for_model
-from aestetik.dataloader import CustomDataset
+import anndata
+import lightning as L
+import torch
 from torch.utils.data import random_split
 
-from typing import Optional
+from aestetik.dataloader import CustomDataset
+from aestetik.utils.utils_data import prepare_input_for_model
 
 
 class AESTETIKDataModule(L.LightningDataModule):
@@ -77,7 +77,7 @@ class AESTETIKDataModule(L.LightningDataModule):
         validation_split: float
             Size of the validation set. It should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the validation split.
         """
-        self.adata = adata 
+        self.adata = adata
         self.validation_split = validation_split
         self.used_obsm = {
                         "used_obsm_transcriptomics": used_obsm_transcriptomics,
@@ -86,13 +86,13 @@ class AESTETIKDataModule(L.LightningDataModule):
         self.used_obs = {
                         "used_obs_batch": used_obs_batch}
         self.dataloader_params = dataloader_params
-        self.clustering_params = clustering_params 
+        self.clustering_params = clustering_params
         self.grid_params = grid_params
         self.loss_regularization_params = loss_regularization_params
         self.data_handling_params = data_handling_params
-        
+
         self._validate_params()
-    
+
     def setup(self, stage=None) -> None:
 
         self.loss_regularization_params["transcriptomics_weight"], self.loss_regularization_params["morphology_weight"] = prepare_input_for_model(adata=self.adata,

@@ -29,13 +29,32 @@ jobs:
           # CPU-only torch for CI (avoids pulling CUDA wheels).
           pip install --index-url https://download.pytorch.org/whl/cpu \
                       'torch>=2.0' 'torchvision>=0.15'
-          pip install -e '.[test]'
+          pip install -e '.[test-all]'
 
-      - name: Run fast tests
-        run: pytest -m "not slow"
+      - name: Run fast tests with coverage
+        run: pytest -m "not slow" --cov=aestetik --cov-report=term --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
 
       - name: Run integration tests
         run: pytest -m slow
         # Don't fail the whole matrix on integration flakes; surface
         # them as warnings until the suite is stabilised.
         continue-on-error: true
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff
+      - run: ruff check src tests
+        continue-on-error: true  # informational until codebase is fully clean

@@ -1,5 +1,4 @@
 import scanpy as sc
-import numpy as np
 
 
 def preprocess_adata(

@@ -1,17 +1,14 @@
-import pandas as pd
-import scanpy as sc
-import numpy as np
-import anndata
-
-from sklearn.mixture import BayesianGaussianMixture
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import silhouette_score
-from sklearn.cluster import KMeans
-from scipy.spatial.distance import cdist
-from tqdm import tqdm
-
 from typing import Optional
 
+import anndata
+import numpy as np
+import pandas as pd
+import scanpy as sc
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from sklearn.mixture import BayesianGaussianMixture
+from sklearn.neighbors import KNeighborsClassifier
+from tqdm import tqdm
 
 
 def find_optimal_n_clusters(adata, start=2, end=10, suggested_n=None):
@@ -123,13 +120,13 @@ def search_res(
             count_unique = len(
                 pd.DataFrame(
                     adata.obs['leiden']).leiden.unique())
-            print('resolution={}, cluster number={}'.format(res, count_unique))
+            print(f'resolution={res}, cluster number={count_unique}')
         elif method == 'louvain':
             sc.tl.louvain(adata, random_state=0, resolution=res)
             count_unique = len(
                 pd.DataFrame(
                     adata.obs['louvain']).louvain.unique())
-            print('resolution={}, cluster number={}'.format(res, count_unique))
+            print(f'resolution={res}, cluster number={count_unique}')
 
         if count_unique == n_clusters:
             break

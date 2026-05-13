@@ -1,6 +1,6 @@
+import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
-import numpy as np
 
 
 class CustomDataset(Dataset):
@@ -11,10 +11,12 @@ class CustomDataset(Dataset):
             repeats=1,
             train_size=None,
             compute_transcriptomics_list=True,
-            compute_morphology_list=True):
+            compute_morphology_list=True,
+            random_state=0):
         super().__init__()
         self.adata = adata.copy()
         self.train_size = train_size
+        self.random_state = random_state
         self.compute_transcriptomics_list = compute_transcriptomics_list
         self.compute_morphology_list = compute_morphology_list
 
@@ -58,7 +60,11 @@ class CustomDataset(Dataset):
         return len(self.dataset)
 
     def _compute_train_idx(self):
-        train_idx, _ = train_test_split(self.adata.obs.index, train_size=self.train_size)
+        train_idx, _ = train_test_split(
+            self.adata.obs.index,
+            train_size=self.train_size,
+            random_state=self.random_state,
+        )
         self.adata = self.adata[train_idx, :]
 
     def _compute_list(

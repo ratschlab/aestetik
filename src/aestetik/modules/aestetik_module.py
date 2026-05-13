@@ -1,23 +1,22 @@
+import logging
+from typing import List, Optional, Tuple
+
 import lightning as L
 import torch
-import logging
-from torch import nn, Tensor
+from torch import Tensor, nn
 
-from aestetik.models.model import AE
 from aestetik.data_modules.data_module import AESTETIKDataModule
 from aestetik.metrics.loss_function import compute_loss
+from aestetik.models.model import AE
 
-from typing import Tuple
-from typing import List 
-from typing import Optional
-
+logger = logging.getLogger(__name__)
 class AESTETIKModel(L.LightningModule):
     def __init__(self,
                  datamodule: AESTETIKDataModule,
                  grid_params: dict,
                  model_architecture_params: dict,
                  training_params: dict,
-                 optimizer_params: dict, 
+                 optimizer_params: dict,
                  ):
         """
         Parameters
@@ -61,11 +60,11 @@ class AESTETIKModel(L.LightningModule):
             "num_repeats": None
         }
         self.model_built = False
-        
-        self._validate_params()
-    
 
-    def setup(self, 
+        self._validate_params()
+
+
+    def setup(self,
               stage=None) -> None:
         self.weights = {
             "transcriptomics_weight": self.datamodule.loss_regularization_params["transcriptomics_weight"],
@@ -79,20 +78,20 @@ class AESTETIKModel(L.LightningModule):
 
     def configure_model(self) -> None:
         if self.model_built:
-            return 
+            return
 
         self.adata = self.datamodule.adata
         self.hparams["grid_params"]["morphology_dim"] = self.adata.obsm["X_st_grid"].shape[2]
         self.hparams["grid_params"]["num_input_channels"] = self.adata.obsm["X_st_grid"].shape[1]
 
-        self.model = AE(**self.hparams["grid_params"], 
+        self.model = AE(**self.hparams["grid_params"],
                         **self.hparams["model_architecture_params"])
         self.model_built = True
 
 
     def training_step(self,
                       batch: Tuple[Tensor, List[Tensor], List[Tensor], List[Tensor], List[Tensor]],
-                      batch_idx: int) -> Tensor: 
+                      batch_idx: int) -> Tensor:
         anchor, pos_transcriptomics_list, neg_transcriptomics_list, pos_morphology_list, neg_morphology_list = batch
         anchor_encode, anchor_decode = self.model(x=anchor)
 
@@ -115,10 +114,10 @@ class AESTETIKModel(L.LightningModule):
         self.log("TC", triplet_loss_transcriptomics)
         self.log("TI", triplet_loss_morphology)
         return total_loss
-    
+
     def validation_step(self,
                       batch: Tuple[Tensor, List[Tensor], List[Tensor], List[Tensor], List[Tensor]],
-                      batch_idx: int) -> Tensor: 
+                      batch_idx: int) -> Tensor:
         self.model.train()
         with torch.no_grad():
             anchor, pos_transcriptomics_list, neg_transcriptomics_list, pos_morphology_list, neg_morphology_list = batch
@@ -138,7 +137,7 @@ class AESTETIKModel(L.LightningModule):
                                                                                                                                         **self.hparams["training_params"])
             self.log("val_loss", total_loss)
             return total_loss
-            
+
     def predict_step(self,
                      batch: Tuple[Tensor,...],
                      batch_idx: int,
@@ -159,17 +158,17 @@ class AESTETIKModel(L.LightningModule):
         batch_latent_space = torch.stack(batch_latent_space, dim=0)
         batch_latent_space = torch.mean(batch_latent_space, dim=0)
         return batch_latent_space
-        
+
     def configure_optimizers(self) -> torch.optim.Optimizer:
-        logging.info("Configuring optimizer ...")
+        logger.info("Configuring optimizer ...")
         optimizer = torch.optim.Adam(self.model.parameters(),
                                      amsgrad=True,
                                      **self.hparams["optimizer_params"])
-        return optimizer 
+        return optimizer
 
 
     def _validate_params(self) -> None:
-        logging.info("Validate parameters in LitAESTETIKModel ...")
+        logger.info("Validate parameters in LitAESTETIKModel ...")
         required = {
             'grid_params': ['obsm_transcriptomics_dim'],
             'model_architecture_params': ['kernel_size','latent_dim',

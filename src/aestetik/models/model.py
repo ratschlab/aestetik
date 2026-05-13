@@ -1,8 +1,9 @@
 """Definition of AE Model"""
 
-from torch import nn
-import torch
 import math
+
+import torch
+from torch import nn
 
 
 class Encode(nn.Module):
