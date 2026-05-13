@@ -61,9 +61,26 @@ vips = ["pyvips>=2.2"]
 # Plotnine is only used by find_optimal_n_clusters() in
 # utils_clustering. Keep it optional to avoid forcing the dep.
 viz = ["plotnine>=0.10"]
+# Optional clustering / HVG dependencies for the leiden/louvain paths
+# in utils_clustering and the seurat_v3 HVG flavor in preprocess_adata.
+graph = [
+    "igraph>=0.10",
+    "leidenalg>=0.9",
+    "louvain>=0.8",
+    "scikit-misc>=0.3",
+]
 test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+]
+# Convenience extra: everything you need to run the full pytest suite.
+test-all = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "igraph>=0.10",
+    "leidenalg>=0.9",
+    "louvain>=0.8",
+    "scikit-misc>=0.3",
 ]
 dev = [
     "pytest>=7.0",
@@ -90,3 +107,35 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
 ]
+
+[tool.coverage.run]
+source = ["src/aestetik"]
+branch = false
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+extend-exclude = [".codeboarding", "example", "scripts"]
+
+[tool.ruff.lint]
+# Conservative ruleset to start: pyflakes, pycodestyle errors, isort,
+# bugbear and a handful of best-practice rules. Style fixes can be
+# applied with `ruff check --fix`.
+select = ["E", "F", "I", "B", "UP", "SIM", "W"]
+ignore = [
+    "E501",  # line too long — handled by formatter not lint
+    "B008",  # function call in argument defaults (fine here)
+    "UP007", # Optional vs `| None` (keep typing.Optional for py3.9 docstrings)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]  # late imports after pytest.importorskip
+"src/aestetik/__init__.py" = ["F401"]  # re-exports
