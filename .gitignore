@@ -1,10 +1,21 @@
 .snakemake/
-/lightning_logs
+lightning_logs/
 *.log
-.ipynb_checkpoints
+*.err
+.ipynb_checkpoints/
 */.ipynb_checkpoints/*
+# Notebook side-effect: sq.pl.spatial_scatter(... save=...) writes here
+# when executed from example/.
+example/figures/
 aestetik.egg-info
-build
-dist
+src/aestetik.egg-info/
+build/
+dist/
+__pycache__/
 */__pycache__/*
 *__pycache__*
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
