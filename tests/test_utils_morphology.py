@@ -6,14 +6,25 @@ test runs on machines without the morphology stack.
 """
 from __future__ import annotations
 
+import io
+
 import numpy as np
 import pytest
 import torch
 from torch import nn
 
-pyvips = pytest.importorskip(
-    "pyvips", reason="pyvips (and libvips) required for morphology helpers"
-)
+
+# Import pyvips with a broad exception net: in some conda envs libvips
+# fails to load (libjpeg ABI mismatch) and pytest.importorskip
+# (ImportError-only) is not enough.
+try:
+    import pyvips  # noqa: F401
+except Exception as _pyvips_exc:  # pragma: no cover
+    pytest.skip(
+        f"pyvips not usable in this env: {_pyvips_exc!r}",
+        allow_module_level=True,
+    )
+
 from aestetik.utils.utils_morphology import extract_morphology_embeddings  # noqa: E402
 
 

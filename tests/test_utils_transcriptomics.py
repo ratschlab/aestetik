@@ -6,9 +6,20 @@ import pytest
 
 from aestetik.utils.utils_transcriptomics import preprocess_adata
 
-# preprocess_adata uses scanpy's seurat_v3 HVG flavor, which requires
-# scikit-misc. Skip the whole module if it's not available.
-pytest.importorskip("skmisc", reason="scikit-misc required for seurat_v3 HVG flavor")
+# preprocess_adata uses scanpy's seurat_v3 HVG flavor, which calls
+# `from skmisc.loess import loess`. We need scikit-misc to (a) be
+# installed AND (b) be ABI-compatible with the installed numpy — the
+# latter is not guaranteed across Python versions on PyPI, so we test
+# the actual import scanpy will perform and skip on any failure mode
+# (ImportError when not installed, ValueError on numpy dtype size
+# mismatch, ...).
+try:
+    from skmisc.loess import loess  # noqa: F401
+except Exception as _skmisc_exc:  # pragma: no cover
+    pytest.skip(
+        f"scikit-misc not usable in this env: {_skmisc_exc!r}",
+        allow_module_level=True,
+    )
 
 
 @pytest.fixture

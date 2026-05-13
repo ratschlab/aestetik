@@ -1,22 +1,25 @@
-"""Tests for the validation surface of ``aestetik.AESTETIK``.
+"""Tests for the validation surface of the sklearn-style ``AESTETIK``
+estimator.
 
-Exercises the private helpers (`_check_fitted`, `_validate_obsm_keys`,
-`_validate_obs_columns`, `_calibrate_predict_inputs`,
-`_create_early_stopping_params`) without needing to spin up Lightning.
+These tests poke the lightweight validation paths (param checks, obsm /
+obs presence checks, fit-vs-predict dim guards, sklearn ``check_is_fitted``
+behavior). They never run Lightning training so they live in the fast
+suite.
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
+from sklearn.exceptions import NotFittedError
+from sklearn.utils.validation import check_is_fitted
 
 from aestetik import AESTETIK
 
 
 def _make_model(**overrides) -> AESTETIK:
     params = dict(
-        nCluster=3,
+        n_cluster=3,
         morphology_weight=1.5,
-        total_weight=3.0,
         window_size=3,
         kernel_size=3,
         latent_dim=4,
@@ -33,87 +36,112 @@ def _make_model(**overrides) -> AESTETIK:
     return AESTETIK(**params)
 
 
-def test_invalid_window_size_raises() -> None:
+# ----------------------------- sklearn surface -----------------------------
+
+
+def test_default_constructor_has_no_required_args():
+    """sklearn contract: estimators must be constructible with no args."""
+    AESTETIK()
+
+
+def test_get_params_returns_constructor_args():
+    model = _make_model()
+    params = model.get_params()
+    assert params["morphology_weight"] == 1.5
+    assert params["n_cluster"] == 3
+    assert params["window_size"] == 3
+    # Underscore-suffix attributes (fitted state) must NOT appear in get_params:
+    assert "embedding_" not in params
+    assert "labels_" not in params
+
+
+def test_set_params_round_trips():
+    model = _make_model()
+    model.set_params(n_cluster=5, morphology_weight=2.0)
+    assert model.n_cluster == 5
+    assert model.morphology_weight == 2.0
+
+
+def test_predict_before_fit_raises_not_fitted(small_adata):
+    model = _make_model()
+    with pytest.raises(NotFittedError):
+        check_is_fitted(model, ["model_", "trainer_"])
+    with pytest.raises(NotFittedError):
+        model.transform(small_adata)
+    with pytest.raises(NotFittedError):
+        model.predict(small_adata)
+
+
+# ----------------------------- Parameter validation -----------------------
+
+
+def test_invalid_window_size_raises_on_fit(small_adata):
+    """Param validation happens in fit (per sklearn convention), not __init__."""
+    model = _make_model(window_size=4)
     with pytest.raises(ValueError, match="window_size should be an odd integer"):
-        _make_model(window_size=4)
+        model.fit(small_adata)
 
 
-def test_predict_before_fit_raises() -> None:
+def test_total_weight_below_morphology_weight_raises(small_adata):
+    model = _make_model(morphology_weight=5.0, total_weight=2.0)
+    with pytest.raises(ValueError, match="total_weight"):
+        model.fit(small_adata)
+
+
+def test_validation_split_must_be_in_unit_interval(small_adata):
+    with pytest.raises(ValueError, match="validation_split"):
+        _make_model(validation_split=1.5).fit(small_adata)
+    with pytest.raises(ValueError, match="validation_split"):
+        _make_model(validation_split=-0.1).fit(small_adata)
+
+
+# ----------------------------- AnnData validation -------------------------
+
+
+def test_fit_reports_missing_obsm_key(small_adata):
     model = _make_model()
-    with pytest.raises(RuntimeError, match="not been fitted"):
-        model._check_fitted()
-
-
-def test_validate_obsm_keys_reports_missing(small_adata) -> None:
-    model = _make_model()
-    # Drop a required obsm key.
     small_adata.obsm.pop("X_pca_morphology")
     with pytest.raises(KeyError) as exc_info:
-        model._validate_fit_inputs(
-            X=small_adata,
-            used_obsm_transcriptomics="X_pca_transcriptomics",
-            used_obsm_morphology="X_pca_morphology",
-        )
+        model.fit(small_adata)
     msg = str(exc_info.value)
     assert "X_pca_morphology" in msg
     assert "fit" in msg
 
 
-def test_validate_obs_columns_reports_missing(small_adata) -> None:
+def test_fit_reports_missing_obs_column(small_adata):
     model = _make_model()
     del small_adata.obs["x_array"]
     with pytest.raises(KeyError, match="x_array"):
-        model._validate_fit_inputs(
-            X=small_adata,
-            used_obsm_transcriptomics="X_pca_transcriptomics",
-            used_obsm_morphology="X_pca_morphology",
-        )
+        model.fit(small_adata)
 
 
-def test_calibrate_predict_inputs_trims_extra_dims(small_adata) -> None:
+# ----------------------------- Predict-side calibration -------------------
+
+
+def test_calibrate_predict_inputs_truncates_extra_dims(small_adata):
     model = _make_model()
-    # Pretend fit has been called.
-    model.grid_params["obsm_transcriptomics_dim"] = 3
-    model.grid_params["num_input_channels"] = 6
-    # Pad the obsm arrays to be larger than required.
-    small_adata.obsm["X_pca_transcriptomics"] = np.random.randn(small_adata.n_obs, 8).astype(np.float32)
-    small_adata.obsm["X_pca_morphology"] = np.random.randn(small_adata.n_obs, 8).astype(np.float32)
-    model._calibrate_predict_inputs(
-        small_adata, "X_pca_transcriptomics", "X_pca_morphology"
-    )
+    # Pretend fit completed:
+    model.obsm_transcriptomics_dim_ = 3
+    model.num_input_channels_ = 6
+    rng = np.random.default_rng(0)
+    small_adata.obsm["X_pca_transcriptomics"] = rng.standard_normal((small_adata.n_obs, 8)).astype(np.float32)
+    small_adata.obsm["X_pca_morphology"] = rng.standard_normal((small_adata.n_obs, 8)).astype(np.float32)
+    model._calibrate_predict_inputs(small_adata)
     assert small_adata.obsm["X_pca_transcriptomics"].shape[1] == 3
     assert small_adata.obsm["X_pca_morphology"].shape[1] == 3  # 6 - 3
 
 
-def test_validate_predict_rejects_undersized_features(small_adata) -> None:
+def test_validate_anndata_rejects_undersized_features(small_adata):
     model = _make_model()
-    model.grid_params["obsm_transcriptomics_dim"] = 4
-    model.grid_params["num_input_channels"] = 8
-    # Make obsm too small to match the model.
+    model.obsm_transcriptomics_dim_ = 4
+    model.num_input_channels_ = 8
     small_adata.obsm["X_pca_transcriptomics"] = np.zeros((small_adata.n_obs, 2), dtype=np.float32)
     small_adata.obsm["X_pca_morphology"] = np.zeros((small_adata.n_obs, 2), dtype=np.float32)
     with pytest.raises(ValueError, match="too small"):
-        model._validate_predict_inputs(
-            X=small_adata,
-            used_obsm_transcriptomics="X_pca_transcriptomics",
-            used_obsm_morphology="X_pca_morphology",
-        )
+        model._validate_anndata(small_adata, method="predict")
 
 
-def test_early_stopping_params_strip_forbidden_keys() -> None:
-    model = _make_model()
-    user_params = {"monitor": "trying_to_override", "patience": 9, "min_delta": 0.01}
-    merged = model._create_early_stopping_params(user_params)
-    assert merged["monitor"] == "val_loss"
-    assert merged["mode"] == "min"
-    assert merged["patience"] == 9
-    assert merged["min_delta"] == 0.01
-
-
-def test_early_stopping_params_defaults_when_none() -> None:
-    model = _make_model()
-    merged = model._create_early_stopping_params(None)
-    assert merged == {"monitor": "val_loss", "mode": "min", "patience": 5}
+# ----------------------------- Misc ---------------------------------------
 
 
 def test_version_is_string() -> None:

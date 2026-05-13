@@ -72,6 +72,27 @@ conda install conda-forge::pyvips
 
 ## Getting Started
 
+AESTETIK follows the scikit-learn ``fit`` / ``transform`` / ``predict``
+estimator surface:
+
+```python
+from aestetik import AESTETIK
+
+model = AESTETIK(
+    n_cluster=adata.obs.ground_truth.unique().size,
+    morphology_weight=1.5,
+    refine_cluster=True,
+    window_size=3,
+    clustering_method="kmeans",
+)
+model.fit(adata)
+adata.obsm["AESTETIK"]        = model.transform(adata)
+adata.obs["AESTETIK_cluster"] = model.predict(adata)
+
+# Or in one shot:
+adata.obs["AESTETIK_cluster"] = model.fit_predict(adata)
+```
+
 Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to get started with AESTETIK.
 
 ![aestetik](/figures/maynard_human_brain_analysis_151676_Transcriptomics_Morphology_AESTETIK.png)

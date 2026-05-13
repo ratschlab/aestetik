@@ -1,6 +1,47 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 (May 2026) — sklearn-style API
+
+### 1. Breaking
+- `AESTETIK` now inherits from `sklearn.base.BaseEstimator`,
+  `TransformerMixin`, `ClusterMixin`. The public methods follow the
+  standard scikit-learn surface:
+  - `fit(X)` returns `self`, no longer mutates `X`.
+  - `transform(X)` returns the latent embedding as `ndarray`.
+  - `predict(X)` returns cluster labels as `ndarray`.
+  - `fit_transform(X)` and `fit_predict(X)` are inherited.
+- Constructor parameters renamed to snake_case:
+  - `nCluster` → `n_cluster`
+  - `random_seed` → `random_state`
+- Training-time configuration (`validation_split`, `early_stopping_params`,
+  `used_obsm_*`, `used_obs_batch`, `num_repeats`) moved from per-call
+  kwargs to constructor parameters; `early_stopping_params` is split
+  into `early_stopping_patience` and `early_stopping_min_delta`.
+
+### 2. Added
+- `embedding_`, `labels_`, `losses_`, `model_`, `trainer_`,
+  `transcriptomics_weight_`, `morphology_weight_`,
+  `obsm_transcriptomics_dim_`, `num_input_channels_` fitted attributes
+  (sklearn trailing-underscore convention).
+- `__version__` now exposed via `importlib.metadata`.
+- `get_params()` / `set_params()` work out of the box.
+
+### 3. Migration
+Old:
+```python
+model = AESTETIK(nCluster=7, morphology_weight=1.5)
+model.fit(adata, validation_split=0.2)
+model.predict(adata, cluster=True)        # mutates adata
+```
+New:
+```python
+model = AESTETIK(n_cluster=7, morphology_weight=1.5, validation_split=0.2)
+model.fit(adata)                          # returns self
+adata.obsm["AESTETIK"]       = model.transform(adata)
+adata.obs["AESTETIK_cluster"] = model.predict(adata)
+```
+
 ## version (June 2025)
 ### 1. Removed
 #### 1.1 Removed methods

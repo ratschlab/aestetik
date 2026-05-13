@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aestetik"
-version = "0.2.0"
+version = "0.3.0"
 description = "AESTETIK: Convolutional autoencoder for learning spot representations from spatial transcriptomics and morphology data"
 readme = "README.md"
 license = "MIT"
