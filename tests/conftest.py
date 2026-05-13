@@ -1,14 +1,25 @@
 """Shared pytest fixtures.
 
-The fixtures here construct tiny synthetic AnnData objects so the tests
-do not depend on the heavyweight files in `test_data/`.
+We provide two kinds of fixtures:
+
+* Synthetic-grid fixtures (``small_adata`` etc.) — fast, deterministic,
+  used for unit tests that only need the right shapes and a few clusters.
+* Real-data fixtures (``simulated_adata``, ``dlpfc_adata``,
+  ``dlpfc_image_path``) — derived from the files committed under
+  ``test_data/``. They exercise the full transcriptomics / morphology
+  pipeline and are skipped automatically if the data is not present.
 """
 from __future__ import annotations
+
+from pathlib import Path
 
 import anndata
 import numpy as np
 import pandas as pd
 import pytest
+
+
+TEST_DATA_DIR = Path(__file__).resolve().parent.parent / "test_data"
 
 
 def _make_grid_adata(n_x: int = 6, n_y: int = 6,
@@ -66,3 +77,49 @@ def small_adata_string_obs():
 @pytest.fixture
 def small_adata_with_batch():
     return _make_grid_adata(batch_label="sample_id")
+
+
+# ----------------------------- Real fixtures -----------------------------
+# We avoid re-reading the .h5ad file on every test by caching the load at
+# session scope and handing out a fresh ``.copy()`` to each test.
+
+
+def _require_data(name: str) -> Path:
+    path = TEST_DATA_DIR / name
+    if not path.exists():
+        pytest.skip(f"required fixture file {path} not found")
+    return path
+
+
+@pytest.fixture(scope="session")
+def simulated_adata_path() -> Path:
+    """Path to the small (1000 spot) simulated dataset."""
+    return _require_data("A.h5ad")
+
+
+@pytest.fixture(scope="session")
+def _simulated_adata_cached(simulated_adata_path: Path) -> anndata.AnnData:
+    return anndata.read_h5ad(simulated_adata_path)
+
+
+@pytest.fixture
+def simulated_adata(_simulated_adata_cached: anndata.AnnData) -> anndata.AnnData:
+    """Per-test copy of the simulated dataset (1000 spots, X_pca + image obsm)."""
+    return _simulated_adata_cached.copy()
+
+
+@pytest.fixture(scope="session")
+def dlpfc_adata_path() -> Path:
+    """Path to the LIBD DLPFC sample 151676 raw-count fixture."""
+    return _require_data("151676.h5ad")
+
+
+@pytest.fixture(scope="session")
+def dlpfc_image_path() -> Path:
+    """Path to the LIBD DLPFC sample 151676 H&E image."""
+    return _require_data("151676.png")
+
+
+@pytest.fixture(scope="session")
+def dlpfc_json_path() -> Path:
+    return _require_data("151676.json")
