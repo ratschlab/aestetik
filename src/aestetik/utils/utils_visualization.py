@@ -79,7 +79,7 @@ def visualize(model: AESTETIK,
                                   plot_clusters=plot_clusters,
                                   plot_centroid=plot_centroid)
         if plot_loss:
-            _plot_loss_values(model.losses)
+            _plot_loss_values(model.losses_)
         if plot_clusters:
             _plot_spatial_scatter_ari(adata,
                                       used_obsm_transcriptomics,
