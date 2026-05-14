@@ -36,12 +36,27 @@ pip install aestetik
 
 ## Quick Start
 
+AESTETIK is a scikit-learn-compatible estimator: it follows the
+``fit`` / ``transform`` / ``predict`` / ``fit_transform`` /
+``fit_predict`` surface. ``fit``, ``transform`` and ``predict`` do
+**not** mutate the input AnnData; results land on the estimator as
+trailing-underscore attributes (``embedding_``, ``labels_``, ...).
+
 ```python
 from aestetik import AESTETIK
 
-model = AESTETIK()
+model = AESTETIK(
+    n_cluster=adata.obs.ground_truth.unique().size,
+    morphology_weight=1.5,
+    window_size=3,
+    clustering_method="kmeans",
+)
 model.fit(adata)
-adata = model.predict(adata)
+adata.obsm["AESTETIK"]        = model.transform(adata)
+adata.obs["AESTETIK_cluster"] = model.predict(adata)
+
+# Or in one shot:
+adata.obs["AESTETIK_cluster"] = model.fit_predict(adata)
 ```
 
 ## Citation

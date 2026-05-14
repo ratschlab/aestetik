@@ -42,7 +42,8 @@ adata.obsm["AESTETIK"]       = model.transform(adata)
 adata.obs["AESTETIK_cluster"] = model.predict(adata)
 ```
 
-## version (June 2025)
+## 0.2.0 (June 2025) — Lightning rewrite
+
 ### 1. Removed
 #### 1.1 Removed methods
 - `AESTETIK.summary(<parameters>)`
