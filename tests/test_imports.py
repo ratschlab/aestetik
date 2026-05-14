@@ -22,12 +22,21 @@ REQUIRED_MODULES = [
     "aestetik.modules",
     "aestetik.modules.aestetik_module",
     "aestetik.utils",
+    "aestetik.utils._pyvips_dtype",
     "aestetik.utils.utils_clustering",
     "aestetik.utils.utils_data",
     "aestetik.utils.utils_grid",
     "aestetik.utils.utils_morphology",
     "aestetik.utils.utils_transcriptomics",
 ]
+
+# utils_visualization is a special case: it imports squidpy / matplotlib
+# but is otherwise self-contained. Keep it in its own test so a heavy
+# import failure (e.g. squidpy not wheel-built for a new python) shows
+# up clearly.
+def test_utils_visualization_importable() -> None:
+    pytest.importorskip("squidpy")
+    importlib.import_module("aestetik.utils.utils_visualization")
 
 
 @pytest.mark.parametrize("name", REQUIRED_MODULES)
