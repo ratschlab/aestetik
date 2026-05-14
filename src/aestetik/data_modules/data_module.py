@@ -10,6 +10,38 @@ from aestetik.utils.utils_data import prepare_input_for_model
 
 
 class AESTETIKDataModule(L.LightningDataModule):
+    """Internal Lightning DataModule for the AESTETIK pipeline.
+
+    The class is constructed by :class:`aestetik.AESTETIK` and is not
+    part of the public API. See ``AESTETIK.fit`` for the parameter
+    semantics; the dicts here are the bagged form of the same
+    settings.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object. **Mutated in place** by ``setup`` — callers
+        should pass a private copy.
+    validation_split : float
+        Proportion of training data held out for Lightning validation.
+    used_obsm_transcriptomics, used_obsm_morphology, used_obsm_combined : str
+        Keys under ``adata.obsm`` for the modality / concatenated input.
+    used_obs_batch : str, optional
+        Column in ``adata.obs`` identifying samples / batches.
+    dataloader_params : dict
+        ``batch_size`` and ``num_workers``.
+    clustering_params : dict
+        ``nCluster``, ``clustering_method``, ``n_neighbors``,
+        ``refine_cluster``.
+    grid_params : dict
+        ``morphology_dim`` (= window_size).
+    loss_regularization_params : dict
+        ``multi_triplet_loss``, ``n_repeats``, ``morphology_weight``,
+        ``transcriptomics_weight``, ``total_weight``.
+    data_handling_params : dict
+        ``n_jobs`` and ``train_size``.
+    """
+
     def __init__(self,
                  adata: anndata,
                  validation_split: float,
@@ -24,59 +56,6 @@ class AESTETIKDataModule(L.LightningDataModule):
                  used_obs_batch: Optional[str] = None,
                 ):
         super().__init__()
-        """
-        Parameters
-        ----------
-        adata : anndata
-            anndata object.
-        used_obsm_transcriptomics : str
-            Key for transcriptomics data in `obsm`.
-        used_obsm_morphology : str
-            Key for morphology data in `obsm`.
-        used_obsm_combined : str
-            Key for combined data in `obsm`.
-        dataloader_params : dict
-            Dictionary with dataloader parameters. Expected keys:
-                -'batch_size': int
-                    Size of the batches.
-                -'num_workers': int
-                    Number of subprocesses to use for data loading.
-        clustering_params : dict
-            Dictionary with clustering parameters. Expected keys:
-                -'nCluster': Union[int, float]
-                    if int: Number of clusters.
-                    if float: Resolution parameter in leiden and louvain.
-                -'clustering_method': Literal["bgm", "kmeans", "louvain", "leiden"]
-                    Clustering method to use.
-                -'n_neighbors': int
-                    Number of neighbors used in refining the cluster assignments in spatial space through majority
-        grid_params : dict
-            Dictionary with grid parameters. Expected keys:
-                -'morphology_dim': int
-                    Size of the window grid.
-        loss_regularization_params : dict
-            Dictionary with loss and regularization parameters. Expected keys:
-                -'multi_triplet_loss': bool
-                    Whether to use multi-triplet loss.
-                -'n_repeats': int
-                    Number of repeats per class in multi_triplet_loss.
-                -'morphology_weight': float
-                    Weight for the morphology modality.
-                -'transcriptomics_weight': Optional[float]
-                    Weight for the transcriptomics modality.
-                -'total_weight': float
-                    Total loss weight.
-        data_handling_params : dict 
-            Dictionary with data handling parameters. Expected keys:
-                -'n_jobs': int
-                    Number of parallel jobs to run while building the grid.
-                -'train_size': Optional[float]
-                    Size of the training set. If float, should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the train split. If int, represents the absolute number of train samples. If None, the value is automatically set to the complement of the test size.
-        used_obs_batch: Optional[str], optional (default=None)
-            Key for column in `obs` that differentiates among experiments or batches.
-        validation_split: float
-            Size of the validation set. It should be between 0.0 and 1.0 and represent the proportion of the dataset to include in the validation split.
-        """
         self.adata = adata
         self.validation_split = validation_split
         self.used_obsm = {
@@ -143,8 +122,13 @@ class AESTETIKDataModule(L.LightningDataModule):
                                            shuffle=True)
 
     def val_dataloader(self) -> torch.utils.data.DataLoader:
+        # When no validation_split was requested we still have to hand
+        # back a DataLoader so Lightning's type checks don't blow up;
+        # an empty TensorDataset is the cheapest way to signal "no
+        # validation batches".
         if self.val_dataset is None:
-            return iter([])
+            empty = torch.utils.data.TensorDataset(torch.empty(0))
+            return torch.utils.data.DataLoader(empty, batch_size=1)
         return torch.utils.data.DataLoader(self.val_dataset, **self.dataloader_params, shuffle=False)
 
     def _validate_params(self) -> None:
