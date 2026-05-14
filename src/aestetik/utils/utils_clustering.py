@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import anndata
@@ -10,6 +11,8 @@ from sklearn.mixture import BayesianGaussianMixture
 from sklearn.neighbors import KNeighborsClassifier
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
 
 def find_optimal_n_clusters(adata, start=2, end=10, suggested_n=None):
     """
@@ -18,7 +21,7 @@ def find_optimal_n_clusters(adata, start=2, end=10, suggested_n=None):
     Parameters
     ----------
     adata : anndata
-        Anndata object with transcripromics stored in X_pca_transcriptomics_cluster and morphology in X_pca_morphology
+        Anndata object with transcriptomics stored in X_pca_transcriptomics_cluster and morphology in X_pca_morphology
     start : int, optional (default=2)
         The starting number of clusters to consider.
     end : int, optional (default=10)
@@ -111,26 +114,21 @@ def search_res(
         Resolution.
 
     '''
-    print('Searching resolution...')
-    label = 0
+    logger.info("Searching resolution ...")
     sc.pp.neighbors(adata, n_neighbors=50, use_rep=use_rep)
-    for res in sorted(list(np.arange(start, end, increment)), reverse=False):
-        if method == 'leiden':
+    res = start
+    for res in sorted(np.arange(start, end, increment)):
+        if method == "leiden":
             sc.tl.leiden(adata, random_state=0, resolution=res)
-            count_unique = len(
-                pd.DataFrame(
-                    adata.obs['leiden']).leiden.unique())
-            print(f'resolution={res}, cluster number={count_unique}')
-        elif method == 'louvain':
+            count_unique = adata.obs["leiden"].nunique()
+        elif method == "louvain":
             sc.tl.louvain(adata, random_state=0, resolution=res)
-            count_unique = len(
-                pd.DataFrame(
-                    adata.obs['louvain']).louvain.unique())
-            print(f'resolution={res}, cluster number={count_unique}')
-
+            count_unique = adata.obs["louvain"].nunique()
+        else:
+            raise ValueError(f"Unsupported method {method!r}; expected 'leiden' or 'louvain'")
+        logger.info("resolution=%s, cluster number=%s", res, count_unique)
         if count_unique == n_clusters:
             break
-
     return res
 
 

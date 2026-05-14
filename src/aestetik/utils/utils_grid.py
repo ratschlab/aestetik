@@ -13,27 +13,24 @@ from sklearn.preprocessing import MinMaxScaler
 from torch.backends import cudnn
 
 logger = logging.getLogger(__name__)
-format_to_dtype = {
-    'uchar': np.uint8,
-    'char': np.int8,
-    'ushort': np.uint16,
-    'short': np.int16,
-    'uint': np.uint32,
-    'int': np.int32,
-    'float': np.float32,
-    'double': np.float64,
-    'complex': np.complex64,
-    'dpcomplex': np.complex128,
-}
+
 
 def fix_seed(seed: int) -> None:
-    """
-    Set all random seeds and configurations for reproducibility.
-    
+    """Set all random seeds and configurations for reproducibility.
+
+    Side effects
+    ------------
+    This function flips ``torch.backends.cudnn.deterministic = True`` and
+    ``benchmark = False`` *globally* in the calling process and also
+    sets ``PYTHONHASHSEED`` / ``CUBLAS_WORKSPACE_CONFIG`` environment
+    variables. Other code running in the same process inherits those
+    settings.
+
     Parameters
     ----------
-    seed: int
-        value for all random generators
+    seed : int
+        Value used for the Python, NumPy, PyTorch (CPU + CUDA), and
+        Lightning RNGs.
     """
     os.environ['PYTHONHASHSEED'] = str(seed)
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
@@ -69,9 +66,11 @@ def create_st_grid(adata: anndata,
     if used_obs_batch is not None and used_obs_batch in adata.obs.columns:
         batch_labels = adata.obs[used_obs_batch].astype("category").cat.codes.to_numpy()
     else:
-        logger.info(
-            "No batch column specified or found in adata.obs. "
-            "We treat all data as coming from a single tissue slice."
+        # Single-sample fixtures are the common case; demote to DEBUG
+        # so it doesn't dominate test output.
+        logger.debug(
+            "No batch column specified or found in adata.obs; "
+            "treating all spots as a single tissue slice."
         )
         batch_labels = np.zeros(len(x_array), dtype=int)
 
@@ -111,8 +110,8 @@ def _build_trees(x_array: np.ndarray,
                  y_array: np.ndarray,
                  batch_labels: np.ndarray) -> Tuple[Dict[int, KDTree], Dict[int, np.ndarray]]:
     batch_ids = np.unique(batch_labels)
-    trees = dict()
-    batch_to_indices = dict()
+    trees: Dict[int, KDTree] = {}
+    batch_to_indices: Dict[int, np.ndarray] = {}
 
     for batch_id in batch_ids:
         spot_indices = np.where(batch_labels == batch_id)[0]

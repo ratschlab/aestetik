@@ -42,19 +42,16 @@ class CustomDataset(Dataset):
         else:
             self.compute_method = self._compute_nothing
 
-        # Create a dictionary to store indices for each unique label in label_transcriptomics
-        self.label_transcriptomics_dict_idx = {}
-        for l in self.label_transcriptomics_unique:
-            self.label_transcriptomics_dict_idx[l] = np.random.permutation(
-                np.where(self.label_transcriptomics == l)[0]
-            )
-
-        # Create a dictionary to store indices for each unique label in label_morphology
-        self.label_morphology_dict_idx = {}
-        for l in self.label_morphology_unique:
-            self.label_morphology_dict_idx[l] = np.random.permutation(
-                np.where(self.label_morphology == l)[0]
-            )
+        # Per-cluster index pools used by _compute_list to sample
+        # positive / negative triplets.
+        self.label_transcriptomics_dict_idx = {
+            cluster: np.random.permutation(np.where(self.label_transcriptomics == cluster)[0])
+            for cluster in self.label_transcriptomics_unique
+        }
+        self.label_morphology_dict_idx = {
+            cluster: np.random.permutation(np.where(self.label_morphology == cluster)[0])
+            for cluster in self.label_morphology_unique
+        }
 
     def __len__(self):
         return len(self.dataset)
@@ -80,14 +77,15 @@ class CustomDataset(Dataset):
             replace=True
         )
 
-        # Randomly select negative indices for all other labels except the anchor label
+        # Randomly select negative indices for all other labels except the anchor label.
+        other_labels = [cluster for cluster in label_unique if cluster != anchor_label]
         if self.multi_triplet_loss:
             neg_indices = np.concatenate([
-                np.random.choice(label_dict_idx[l], size=repeats, replace=True)
-                for l in label_unique if l != anchor_label
+                np.random.choice(label_dict_idx[cluster], size=repeats, replace=True)
+                for cluster in other_labels
             ])
         else:
-            random_neg_label = np.random.choice([l for l in label_unique if l != anchor_label])
+            random_neg_label = np.random.choice(other_labels)
             neg_indices = np.random.choice(label_dict_idx[random_neg_label], size=repeats, replace=True)
 
         return pos_indices, neg_indices
