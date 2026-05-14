@@ -80,9 +80,11 @@ class AESTETIKModel(L.LightningModule):
         if self.model_built:
             return
 
-        self.adata = self.datamodule.adata
-        self.hparams["grid_params"]["morphology_dim"] = self.adata.obsm["X_st_grid"].shape[2]
-        self.hparams["grid_params"]["num_input_channels"] = self.adata.obsm["X_st_grid"].shape[1]
+        # Read shapes from the datamodule's prepared grid without
+        # hanging on to the AnnData reference.
+        grid = self.datamodule.adata.obsm["X_st_grid"]
+        self.hparams["grid_params"]["morphology_dim"] = grid.shape[2]
+        self.hparams["grid_params"]["num_input_channels"] = grid.shape[1]
 
         self.model = AE(**self.hparams["grid_params"],
                         **self.hparams["model_architecture_params"])
