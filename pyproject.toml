@@ -43,7 +43,10 @@ dependencies = [
     "torch>=2.0",
     "torchvision>=0.15",
     "lightning>=2.0",
-    "numpy>=1.23",
+    # spatialdata still references np.float_ on its py3.9-compatible
+    # release line; numpy 2.0 removed it. Cap numpy<2 on py3.9.
+    "numpy>=1.23; python_version>='3.10'",
+    "numpy>=1.23,<2; python_version<'3.10'",
     "pandas>=1.5",
     "scipy>=1.10",
     "anndata>=0.9",
