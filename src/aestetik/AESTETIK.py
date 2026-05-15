@@ -23,6 +23,11 @@ from aestetik.utils.utils_grid import fix_seed
 
 logger = logging.getLogger(__name__)
 
+# Sentinel key under which the latent embedding is parked in a private
+# AnnData copy so the existing ``clustering`` helper (which reads from
+# ``obsm``) can run. Never leaks to the user-facing AnnData.
+_EMBEDDING_OBSM_KEY = "_aestetik_emb"
+
 
 class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     """sklearn-compatible multimodal autoencoder for spatial transcriptomics.
@@ -33,7 +38,7 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     morphology embeddings in ``adata.obsm`` and spatial coordinates
     (``x_array``, ``y_array``) in ``adata.obs``.
 
-    ``fit``, ``transform`` and ``predict`` are read-only on ``X``. Fitted
+    ``fit``, ``transform`` and ``predict`` are **read-only** on ``X``. Fitted
     attributes (with the customary trailing underscore) expose the trained
     state so callers can attach results to the AnnData themselves if they
     want::
@@ -43,24 +48,35 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
         adata.obsm["AESTETIK"] = model.embedding_
         adata.obs["AESTETIK_cluster"] = model.labels_
 
+    Notes
+    -----
+    * ``transform`` is **stochastic**: the prediction loop keeps dropout
+      active and averages ``num_repeats_predict`` forward passes. Two
+      calls on identical input therefore differ in the last few decimals.
+      ``model.embedding_`` is one independent realisation of that
+      average computed during ``fit``.
+    * Setting ``validation_split > 0`` automatically enables
+      :class:`lightning.pytorch.callbacks.EarlyStopping` and
+      :class:`lightning.pytorch.callbacks.ModelCheckpoint` (best by
+      ``val_loss``).
+    * ``fix_seed`` is called from ``fit`` and has global side effects on
+      ``torch.backends.cudnn`` and several environment variables.
+
     Parameters
     ----------
     morphology_weight : float, default=1.5
         Weight assigned to the morphology modality in the joint loss.
     n_cluster : int or float, default=7
-        If int, target number of clusters for the kmeans / bgm methods.
+        If int, target number of clusters for kmeans / bgm.
         If float, used as the resolution parameter for leiden / louvain.
     total_weight : float, default=3.0
         Sum target for transcriptomics + morphology weight after calibration.
-    rec_alpha : float, default=1.0
-        Reconstruction loss coefficient.
-    triplet_alpha : float, default=1.0
-        Triplet loss coefficient.
+    rec_alpha, triplet_alpha : float, default=1.0
+        Per-loss coefficients.
     train_size : float, optional
-        If given, the fraction of spots kept after the per-call train/test
-        split inside :class:`~aestetik.dataloader.CustomDataset`.
+        If given, the fraction of spots kept inside :class:`CustomDataset`.
     window_size : int, default=7
-        Side length (odd) of the neighborhood grid used as input to the CNN.
+        Side length (odd) of the neighborhood grid used as CNN input.
     kernel_size : int, default=3
         CNN kernel size.
     latent_dim : int, default=16
@@ -76,11 +92,11 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     multi_triplet_loss : bool, default=True
         Whether to use the multi-class triplet variant.
     n_repeats : int, default=1
-        Number of positive / negative repeats per anchor for the triplet loss.
+        Positive / negative repeats per anchor for the triplet loss.
     clustering_method : {"bgm", "kmeans", "louvain", "leiden"}, default="bgm"
         Clustering algorithm applied to the embedding.
     batch_size : int, optional
-        DataLoader batch size; defaults to ``min(2**13, len(X))`` at fit time.
+        DataLoader batch size; defaults to ``min(2**13, len(X))``.
     n_ensemble : int, default=3
         Default number of encoder/decoder ensemble members.
     n_ensemble_encoder, n_ensemble_decoder : int, optional
@@ -88,7 +104,7 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     weight_decay : float, default=1e-6
         Adam ``weight_decay``.
     refine_cluster : bool, default=True
-        Whether to spatially refine cluster assignments using KNN.
+        Whether to spatially refine cluster assignments via KNN.
     n_neighbors : int, default=10
         Number of neighbours used by the spatial refinement step.
     n_jobs : int, default=1
@@ -100,19 +116,18 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     used_obsm_morphology : str, default="X_pca_morphology"
         Key for morphology features in ``adata.obsm``.
     used_obsm_combined : str, default="X_pca"
-        Key under which the combined modality is stored (used internally
-        when building the grid).
+        Key under which the combined modality is stored (internal).
     used_obs_batch : str, optional
         Column in ``adata.obs`` containing sample / batch labels.
     validation_split : float, default=0.0
         Fraction of training data held out for Lightning validation.
+        Triggers EarlyStopping + ModelCheckpoint when > 0.
     early_stopping_patience : int, default=5
-        Patience for ``EarlyStopping`` (only used when ``validation_split > 0``).
+        Patience for ``EarlyStopping`` (active when ``validation_split > 0``).
     early_stopping_min_delta : float, default=0.0
         Minimum delta for ``EarlyStopping``.
     num_repeats_predict : int, default=1000
-        Number of stochastic forward passes averaged when computing the
-        embedding in ``transform`` / ``predict``.
+        Number of stochastic forward passes averaged in ``transform``.
     random_state : int, default=2023
         Seed used for all RNGs.
 
@@ -123,7 +138,7 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     trainer_ : lightning.pytorch.Trainer
         The Lightning trainer used to fit the model.
     losses_ : list of float
-        Per-batch training loss values.
+        Per-batch training-loss values.
     embedding_ : ndarray of shape (n_obs, latent_dim)
         Latent embedding computed on the training data.
     labels_ : ndarray of shape (n_obs,)
@@ -228,113 +243,23 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
 
         # Work on a private copy so the public X is never mutated.
         adata = X.copy()
-
-        kernel_size = (
-            self.kernel_size
-            if self.kernel_size < self.window_size
-            else max(1, self.window_size - 1)
-        )
-        n_enc = self.n_ensemble_encoder or self.n_ensemble
-        n_dec = self.n_ensemble_decoder or self.n_ensemble
-        batch_size = self.batch_size or min(2 ** 13, adata.n_obs)
-        n_jobs = self.n_jobs if self.n_jobs != -1 else (os.cpu_count() or 1)
-        obsm_transcriptomics_dim = adata.obsm[self.used_obsm_transcriptomics].shape[1]
-
-        grid_params = {
-            "morphology_dim": self.window_size,
-            "num_input_channels": None,
-            "obsm_transcriptomics_dim": obsm_transcriptomics_dim,
-        }
-        model_architecture_params = {
-            "latent_dim": self.latent_dim,
-            "c_hid": self.c_hid,
-            "kernel_size": kernel_size,
-            "p": self.p,
-            "n_ensemble_encoder": n_enc,
-            "n_ensemble_decoder": n_dec,
-        }
-        dataloader_params = {"batch_size": batch_size, "num_workers": self.num_workers}
-        clustering_params = {
-            "nCluster": self.n_cluster,
-            "clustering_method": self.clustering_method,
-            "n_neighbors": self.n_neighbors,
-            "refine_cluster": self.refine_cluster and self.n_neighbors > 1,
-        }
-        loss_regularization_params = {
-            "multi_triplet_loss": self.multi_triplet_loss,
-            "rec_alpha": self.rec_alpha,
-            "triplet_alpha": self.triplet_alpha,
-            "n_repeats": self.n_repeats,
-            "morphology_weight": self.morphology_weight,
-            "transcriptomics_weight": None,
-            "total_weight": self.total_weight,
-        }
-        data_handling_params = {"n_jobs": n_jobs, "train_size": self.train_size}
-
-        logger.info("Initializing datamodule ...")
-        datamodule = AESTETIKDataModule(
-            adata=adata,
-            used_obsm_transcriptomics=self.used_obsm_transcriptomics,
-            used_obsm_morphology=self.used_obsm_morphology,
-            used_obsm_combined=self.used_obsm_combined,
-            used_obs_batch=self.used_obs_batch,
-            dataloader_params=dataloader_params,
-            clustering_params=clustering_params,
-            grid_params=grid_params,
-            loss_regularization_params=loss_regularization_params,
-            data_handling_params=data_handling_params,
-            validation_split=self.validation_split,
-        )
-
-        training_step_params = {"rec_alpha": self.rec_alpha, "triplet_alpha": self.triplet_alpha}
-        optimizer_step_params = {"lr": self.lr, "weight_decay": self.weight_decay}
-        lit_model = AESTETIKModel(
-            datamodule=datamodule,
-            grid_params=grid_params,
-            model_architecture_params=model_architecture_params,
-            training_params=training_step_params,
-            optimizer_params=optimizer_step_params,
-        )
-
-        callbacks = self._create_callbacks()
-        logger.info("Fit AESTETIKModel ...")
-        trainer = Trainer(
-            max_epochs=self.max_epochs,
-            callbacks=callbacks,
-            num_sanity_val_steps=0,
-        )
+        datamodule = self._build_datamodule(adata)
+        lit_model = self._build_lightning_module(datamodule)
+        trainer, callbacks = self._build_trainer()
+        logger.info("Fitting AESTETIKModel ...")
         trainer.fit(lit_model, datamodule=datamodule)
 
-        # Store fitted state.
-        self.model_ = lit_model
-        self.trainer_ = trainer
-        self.losses_ = list(callbacks[0].losses)
-        self.transcriptomics_weight_ = datamodule.loss_regularization_params["transcriptomics_weight"]
-        self.morphology_weight_ = datamodule.loss_regularization_params["morphology_weight"]
-        self.obsm_transcriptomics_dim_ = obsm_transcriptomics_dim
-        self.num_input_channels_ = datamodule.adata.obsm["X_st_grid"].shape[1]
-        # Modality-only cluster labels (the pre-AESTETIK baseline). Stored
-        # so callers don't need to recompute them or rely on side effects.
-        self.transcriptomics_cluster_ = datamodule.adata.obs[
-            f"{self.used_obsm_transcriptomics}_cluster"
-        ].to_numpy()
-        self.morphology_cluster_ = datamodule.adata.obs[
-            f"{self.used_obsm_morphology}_cluster"
-        ].to_numpy()
-        self.grid_params_ = {
-            "morphology_dim": self.window_size,
-            "num_input_channels": self.num_input_channels_,
-            "obsm_transcriptomics_dim": self.obsm_transcriptomics_dim_,
-        }
-
+        self._record_trained_state(datamodule, lit_model, trainer, callbacks[0])
         # Cache embedding + labels on the (already-built) training grid.
         self.embedding_ = self._compute_latent_space(datamodule.adata, built_grid=True)
         self.labels_ = self._cluster_embedding(datamodule.adata, self.embedding_)
-
         return self
 
     def transform(self, X: anndata.AnnData) -> np.ndarray:
-        """Return the latent embedding for ``X`` as a (n_obs, latent_dim) array."""
+        """Return the latent embedding for ``X`` as a (n_obs, latent_dim) array.
+
+        See class docstring: this method is **stochastic**.
+        """
         check_is_fitted(self, ["model_", "trainer_"])
         self._validate_anndata(X, method="transform")
         adata = X.copy()
@@ -350,11 +275,124 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
         embedding = self._compute_latent_space(adata, built_grid=False)
         return self._cluster_embedding(adata, embedding)
 
-    @staticmethod
-    def version() -> str:
-        return "0.3.0"
+    # --------------------------- Build helpers -----------------------------
+    # The build_* helpers translate the snake_case sklearn-style params into
+    # the dict bags the internal Lightning modules expect.
 
-    # --------------------------- Internal helpers --------------------------
+    def _effective_kernel_size(self) -> int:
+        if self.kernel_size < self.window_size:
+            return self.kernel_size
+        return max(1, self.window_size - 1)
+
+    def _effective_n_jobs(self) -> int:
+        return self.n_jobs if self.n_jobs != -1 else (os.cpu_count() or 1)
+
+    def _effective_batch_size(self, n_obs: int) -> int:
+        return self.batch_size or min(2 ** 13, n_obs)
+
+    def _build_datamodule(self, adata: anndata.AnnData) -> AESTETIKDataModule:
+        logger.info("Initializing datamodule ...")
+        return AESTETIKDataModule(
+            adata=adata,
+            used_obsm_transcriptomics=self.used_obsm_transcriptomics,
+            used_obsm_morphology=self.used_obsm_morphology,
+            used_obsm_combined=self.used_obsm_combined,
+            used_obs_batch=self.used_obs_batch,
+            dataloader_params={
+                "batch_size": self._effective_batch_size(adata.n_obs),
+                "num_workers": self.num_workers,
+            },
+            clustering_params={
+                "nCluster": self.n_cluster,
+                "clustering_method": self.clustering_method,
+                "n_neighbors": self.n_neighbors,
+                "refine_cluster": self.refine_cluster and self.n_neighbors > 1,
+            },
+            grid_params={
+                "morphology_dim": self.window_size,
+                "num_input_channels": None,
+                "obsm_transcriptomics_dim": adata.obsm[self.used_obsm_transcriptomics].shape[1],
+            },
+            loss_regularization_params={
+                "multi_triplet_loss": self.multi_triplet_loss,
+                "rec_alpha": self.rec_alpha,
+                "triplet_alpha": self.triplet_alpha,
+                "n_repeats": self.n_repeats,
+                "morphology_weight": self.morphology_weight,
+                "transcriptomics_weight": None,
+                "total_weight": self.total_weight,
+            },
+            data_handling_params={
+                "n_jobs": self._effective_n_jobs(),
+                "train_size": self.train_size,
+            },
+            validation_split=self.validation_split,
+        )
+
+    def _build_lightning_module(self, datamodule: AESTETIKDataModule) -> AESTETIKModel:
+        n_enc = self.n_ensemble_encoder or self.n_ensemble
+        n_dec = self.n_ensemble_decoder or self.n_ensemble
+        obsm_t_dim = datamodule.adata.obsm[self.used_obsm_transcriptomics].shape[1]
+        return AESTETIKModel(
+            datamodule=datamodule,
+            grid_params={
+                "morphology_dim": self.window_size,
+                "num_input_channels": None,
+                "obsm_transcriptomics_dim": obsm_t_dim,
+            },
+            model_architecture_params={
+                "latent_dim": self.latent_dim,
+                "c_hid": self.c_hid,
+                "kernel_size": self._effective_kernel_size(),
+                "p": self.p,
+                "n_ensemble_encoder": n_enc,
+                "n_ensemble_decoder": n_dec,
+            },
+            training_params={"rec_alpha": self.rec_alpha, "triplet_alpha": self.triplet_alpha},
+            optimizer_params={"lr": self.lr, "weight_decay": self.weight_decay},
+        )
+
+    def _build_trainer(self) -> tuple[Trainer, list]:
+        callbacks: list = [LossHistoryCallback()]
+        if self.validation_split > 0.0:
+            callbacks.append(EarlyStopping(
+                monitor="val_loss", mode="min",
+                patience=self.early_stopping_patience,
+                min_delta=self.early_stopping_min_delta,
+            ))
+            callbacks.append(ModelCheckpoint(
+                monitor="val_loss", mode="min", save_top_k=1, filename="best-checkpoint",
+            ))
+        trainer = Trainer(
+            max_epochs=self.max_epochs,
+            callbacks=callbacks,
+            num_sanity_val_steps=0,
+        )
+        return trainer, callbacks
+
+    def _record_trained_state(
+        self,
+        datamodule: AESTETIKDataModule,
+        lit_model: AESTETIKModel,
+        trainer: Trainer,
+        loss_callback: LossHistoryCallback,
+    ) -> None:
+        """Snapshot the post-fit state into trailing-underscore attrs."""
+        self.model_ = lit_model
+        self.trainer_ = trainer
+        self.losses_ = list(loss_callback.losses)
+        self.transcriptomics_weight_ = datamodule.loss_regularization_params["transcriptomics_weight"]
+        self.morphology_weight_ = datamodule.loss_regularization_params["morphology_weight"]
+        self.obsm_transcriptomics_dim_ = datamodule.adata.obsm[self.used_obsm_transcriptomics].shape[1]
+        self.num_input_channels_ = datamodule.adata.obsm["X_st_grid"].shape[1]
+        self.transcriptomics_cluster_ = datamodule.adata.obs[
+            f"{self.used_obsm_transcriptomics}_cluster"
+        ].to_numpy()
+        self.morphology_cluster_ = datamodule.adata.obs[
+            f"{self.used_obsm_morphology}_cluster"
+        ].to_numpy()
+
+    # --------------------------- Validation --------------------------------
 
     def _validate_params(self) -> None:
         if self.window_size % 2 == 0:
@@ -363,8 +401,10 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
             raise ValueError(
                 f"total_weight ({self.total_weight}) must be >= morphology_weight ({self.morphology_weight})"
             )
-        if self.validation_split < 0 or self.validation_split >= 1:
-            raise ValueError(f"validation_split must be in [0, 1); got {self.validation_split}")
+        if not 0 <= self.validation_split < 1:
+            raise ValueError(
+                f"validation_split must be in [0, 1); got {self.validation_split}"
+            )
 
     def _validate_anndata(self, X: anndata.AnnData, method: str) -> None:
         self._require_obsm(X, [self.used_obsm_transcriptomics, self.used_obsm_morphology], method)
@@ -398,45 +438,29 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
                 f"Available columns: {list(X.obs.columns)}"
             )
 
+    # --------------------------- Predict-side helpers ----------------------
+
     def _calibrate_predict_inputs(self, adata: anndata.AnnData) -> None:
         """Truncate obsm to match the dims seen at fit time."""
         m_target = self.num_input_channels_ - self.obsm_transcriptomics_dim_
         if adata.obsm[self.used_obsm_transcriptomics].shape[1] > self.obsm_transcriptomics_dim_:
-            logger.info("Truncating %s to fit-time dim %d",
-                        self.used_obsm_transcriptomics, self.obsm_transcriptomics_dim_)
+            logger.info(
+                "Truncating %s to fit-time dim %d",
+                self.used_obsm_transcriptomics, self.obsm_transcriptomics_dim_,
+            )
             adata.obsm[self.used_obsm_transcriptomics] = adata.obsm[
                 self.used_obsm_transcriptomics
             ][:, : self.obsm_transcriptomics_dim_]
         if adata.obsm[self.used_obsm_morphology].shape[1] > m_target:
-            logger.info("Truncating %s to fit-time dim %d",
-                        self.used_obsm_morphology, m_target)
+            logger.info(
+                "Truncating %s to fit-time dim %d",
+                self.used_obsm_morphology, m_target,
+            )
             adata.obsm[self.used_obsm_morphology] = adata.obsm[
                 self.used_obsm_morphology
             ][:, :m_target]
 
-    def _create_callbacks(self) -> list:
-        callbacks: list = [LossHistoryCallback()]
-        if self.validation_split > 0.0:
-            callbacks.append(
-                EarlyStopping(
-                    monitor="val_loss",
-                    mode="min",
-                    patience=self.early_stopping_patience,
-                    min_delta=self.early_stopping_min_delta,
-                )
-            )
-            callbacks.append(
-                ModelCheckpoint(
-                    monitor="val_loss",
-                    mode="min",
-                    save_top_k=1,
-                    filename="best-checkpoint",
-                )
-            )
-        return callbacks
-
     def _compute_latent_space(self, adata: anndata.AnnData, built_grid: bool) -> np.ndarray:
-        n_jobs = self.n_jobs if self.n_jobs != -1 else (os.cpu_count() or 1)
         if not built_grid:
             build_grid(
                 adata,
@@ -444,15 +468,13 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
                 used_obsm_morphology=self.used_obsm_morphology,
                 used_obs_batch=self.used_obs_batch,
                 window_size=self.window_size,
-                n_jobs=n_jobs,
+                n_jobs=self._effective_n_jobs(),
             )
 
-        batch_size = self.batch_size or min(2 ** 13, adata.n_obs)
         all_spots = torch.from_numpy(adata.obsm["X_st_grid"].astype(np.float32))
-        dataset = TensorDataset(all_spots)
         loader = DataLoader(
-            dataset,
-            batch_size=batch_size,
+            TensorDataset(all_spots),
+            batch_size=self._effective_batch_size(adata.n_obs),
             num_workers=self.num_workers,
             shuffle=False,
         )
@@ -464,22 +486,20 @@ class AESTETIK(TransformerMixin, ClusterMixin, BaseEstimator):
     def _cluster_embedding(
         self, adata: anndata.AnnData, embedding: np.ndarray
     ) -> np.ndarray:
-        """Run the clustering algorithm on ``embedding`` and return labels.
+        """Cluster ``embedding`` and return labels (no user-visible mutation).
 
-        The helper writes the embedding to ``adata.obsm`` temporarily so
-        the existing ``clustering`` utility (which expects a key in
-        ``obsm``) can consume it. ``adata`` here is a private copy so
-        this mutation is not user-visible.
+        The helper writes the embedding to a sentinel key in
+        ``adata.obsm`` so the existing ``clustering`` utility can
+        consume it. ``adata`` here is always a private copy.
         """
-        emb_key = "_aestetik_emb"
-        adata.obsm[emb_key] = embedding
+        adata.obsm[_EMBEDDING_OBSM_KEY] = embedding
         clustering(
             adata,
             num_cluster=self.n_cluster,
-            used_obsm=emb_key,
+            used_obsm=_EMBEDDING_OBSM_KEY,
             method=self.clustering_method,
             refine_cluster=self.refine_cluster and self.n_neighbors > 1,
             n_neighbors=self.n_neighbors,
             used_obs_batch=self.used_obs_batch,
         )
-        return adata.obs[f"{emb_key}_cluster"].to_numpy()
+        return adata.obs[f"{_EMBEDDING_OBSM_KEY}_cluster"].to_numpy()

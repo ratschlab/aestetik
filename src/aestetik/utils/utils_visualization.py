@@ -11,21 +11,9 @@ from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.neighbors import NearestCentroid
 
 from aestetik.AESTETIK import AESTETIK
+from aestetik.utils._pyvips_dtype import FORMAT_TO_DTYPE
 
 logger = logging.getLogger(__name__)
-
-format_to_dtype = {
-    'uchar': np.uint8,
-    'char': np.int8,
-    'ushort': np.uint16,
-    'short': np.int16,
-    'uint': np.uint32,
-    'int': np.int32,
-    'float': np.float32,
-    'double': np.float64,
-    'complex': np.complex64,
-    'dpcomplex': np.complex128,
-}
 
 
 def visualize(model: AESTETIK,
@@ -190,7 +178,7 @@ def _get_spot(image, x, y, spot_diameter_fullres):
     y = y - int(spot_diameter_fullres // 2)
     spot = image.crop(x, y, spot_diameter_fullres, spot_diameter_fullres)
     spot_array = np.ndarray(buffer=spot.write_to_memory(),
-                            dtype=format_to_dtype[spot.format],
+                            dtype=FORMAT_TO_DTYPE[spot.format],
                             shape=[spot.height, spot.width, spot.bands])
     return spot_array
 

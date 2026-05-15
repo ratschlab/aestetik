@@ -72,8 +72,9 @@ conda install conda-forge::pyvips
 
 ## Getting Started
 
-AESTETIK follows the scikit-learn ``fit`` / ``transform`` / ``predict``
-estimator surface:
+After installing, confirm the version with `import aestetik;
+aestetik.__version__`. AESTETIK follows the scikit-learn ``fit`` /
+``transform`` / ``predict`` estimator surface:
 
 ```python
 from aestetik import AESTETIK

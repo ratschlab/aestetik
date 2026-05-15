@@ -102,7 +102,7 @@ def test_configure_optimizers_returns_adam(ready_model):
 
 def test_predict_step_requires_num_repeats(ready_model):
     model, _ = ready_model
-    batch_spots = torch.from_numpy(model.adata.obsm["X_st_grid"][:2].astype("float32"))
+    batch_spots = torch.from_numpy(model.datamodule.adata.obsm["X_st_grid"][:2].astype("float32"))
     with pytest.raises(TypeError, match="num_repeats"):
         model.predict_step((batch_spots,), batch_idx=0)
 
@@ -110,7 +110,7 @@ def test_predict_step_requires_num_repeats(ready_model):
 def test_predict_step_returns_mean_embedding(ready_model):
     model, _ = ready_model
     model.predict_params["num_repeats"] = 3
-    batch_spots = torch.from_numpy(model.adata.obsm["X_st_grid"][:2].astype("float32"))
+    batch_spots = torch.from_numpy(model.datamodule.adata.obsm["X_st_grid"][:2].astype("float32"))
     z = model.predict_step((batch_spots,), batch_idx=0)
     assert z.shape == (2, 4)
     assert torch.isfinite(z).all()

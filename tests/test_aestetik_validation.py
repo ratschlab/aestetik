@@ -145,4 +145,7 @@ def test_validate_anndata_rejects_undersized_features(small_adata):
 
 
 def test_version_is_string() -> None:
-    assert isinstance(AESTETIK.version(), str)
+    import aestetik
+    assert isinstance(aestetik.__version__, str)
+    # Must be PEP 440-ish (digit-dotted) or the sentinel.
+    assert aestetik.__version__ == "0.0.0+unknown" or aestetik.__version__[0].isdigit()

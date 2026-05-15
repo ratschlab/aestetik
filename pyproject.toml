@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aestetik"
-version = "0.3.0"
+version = "0.3.1"
 description = "AESTETIK: Convolutional autoencoder for learning spot representations from spatial transcriptomics and morphology data"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<3.14"
 authors = [
     {name = "Kalin Nonchev"},
 ]
@@ -34,6 +34,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
@@ -96,6 +97,10 @@ Repository = "https://github.com/ratschlab/aestetik"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+# Expose PEP 561 type hints to downstream consumers.
+aestetik = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
