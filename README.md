@@ -106,7 +106,7 @@ Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to
 ## Papers Citing AESTETIK
 
 <!-- CITATIONS:START -->
-1. Justina Dai, Kalin Nonchev, V. Koelzer, and Gunnar Rätsch "Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.03.02.709002)
+1. Ju Dai, Kalin Nonchev, V. Koelzer, and Gunnar Rätsch "Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.03.02.709002)
 2. Kalin Nonchev, Glib Manaiev, V. Koelzer, and Gunnar Rätsch "DeepSpot2Cell: Predicting Virtual Single-Cell Spatial Transcriptomics from H&E images using Spot-Level Supervision." *bioRxiv* (2025). [DOI](https://doi.org/10.1101/2025.09.23.678121)
 3. Liping Kang, Qinglong Zhang, Fan Qian, Junyao Liang, and Xiaohui Wu "Benchmarking computational methods for detecting spatial domains and domain-specific spatially variable genes from spatial transcriptomics data." *Nucleic Acids Research* (2025). [DOI](https://doi.org/10.1093/nar/gkaf303)
 4. Kalin Nonchev, Sebastian Dawo, Karina Silina, H. Moch, S. Andani, Tumor Profiler Consortium, V. H. Koelzer, and Gunnar R¨atsch "DeepSpot: Leveraging Spatial Context for Enhanced Spatial Transcriptomics Prediction from H&E Images." *medRxiv* (2025). [DOI](https://doi.org/10.1101/2025.02.09.25321567)
