@@ -125,13 +125,13 @@ Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to
 In case you found our work useful, please consider citing us:
 
 ```
-@article{nonchev2024representation,
+@article{nonchev2026representation,
   title={Representation learning for multi-modal spatially resolved transcriptomics data},
-  author={Nonchev, Kalin and Andani, Sonali and Ficek-Pascual, Joanna and Nowak, Marta and Sobottka, Bettina and Tumor Profiler Consortium and Koelzer, Viktor Hendrik and Raetsch, Gunnar},
-  journal={medRxiv},
-  pages={2024--06},
-  year={2024},
-  publisher={Cold Spring Harbor Laboratory Press}
+  author={Nonchev, Kalin and Andani, Sonali and Ficek-Pascual, Joanna and Nowak, Marta and Sobottka, Bettina and Consortium, Tumor Profiler and Koelzer, Viktor H and R{\"a}tsch, Gunnar},
+  journal={Bioinformatics},
+  pages={btag316},
+  year={2026},
+  publisher={Oxford University Press}
 }
 ```
 
