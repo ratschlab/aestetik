@@ -13,6 +13,7 @@ The preprint is available [here](https://www.medrxiv.org/content/10.1101/2024.06
 
 ## News
 
+  - [06.2026] New generation model [DeepSpot-M: a multimodal foundation model for transcriptome-wide virtual spatial transcriptomics from histology](https://www.medrxiv.org/content/10.64898/2026.06.19.26356060v1). [Code.](https://github.com/ratschlab/DeepSpotM)
   - [05.2026] [Representation learning for multi-modal spatially resolved transcriptomics data](https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/btag316/8692433) has been published in Bioinformatics (Oxford)
   - [03.2026] [Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics](https://www.biorxiv.org/content/10.64898/2026.03.02.709002v1) will be at ICLR 2026 Learning Meaningful Representations of Life 
   - [09.2025] AESTETIK now supports multi-modal (e.g., H&E images, spatial transcriptomics) and cross-sample integration using Harmony, scVI, etc.
