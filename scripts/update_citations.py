@@ -131,17 +131,20 @@ def fetch_all_citing_papers():
 
 
 DOI_LINK_RE = re.compile(r"https?://doi\.org/([^)\s]+)", re.IGNORECASE)
+ENTRY_LINK_RE = re.compile(r"\]\((https?://[^)\s]+)\)")
 ENTRY_AUTHORS_RE = re.compile(r'^\d+\.\s+(.+?)\s+"')
 
 
-def _doi_key(link):
-    """Return a normalized DOI key from a doi.org link, else the raw link."""
-    match = DOI_LINK_RE.search(link or "")
-    return match.group(1).lower() if match else (link or "")
+def _citation_key(link):
+    """Stable key for a citation: bare DOI for doi.org links, else the raw URL."""
+    if not link:
+        return ""
+    match = DOI_LINK_RE.search(link)
+    return match.group(1).lower() if match else link.strip()
 
 
 def parse_existing_authors(readme):
-    """Map DOI -> author string already rendered in the README's citation list.
+    """Map citation key -> author string already rendered in the README.
 
     Semantic Scholar returns author names inconsistently across runs (e.g. full
     name one week, initials the next). Reusing the author string already committed
@@ -154,9 +157,9 @@ def parse_existing_authors(readme):
     section = readme.split(SECTION_START, 1)[1].split(SECTION_END, 1)[0]
     for line in section.splitlines():
         authors = ENTRY_AUTHORS_RE.match(line.strip())
-        link = DOI_LINK_RE.search(line)
-        if authors and link:
-            existing[link.group(1).lower()] = authors.group(1).strip()
+        links = ENTRY_LINK_RE.findall(line)
+        if authors and links:
+            existing[_citation_key(links[-1])] = authors.group(1).strip()
     return existing
 
 
@@ -179,9 +182,9 @@ def format_citations(papers, existing_authors=None):
     for i, p in enumerate(papers, 1):
         # Prefer the author string already committed for this paper so flaky
         # name variants from the API don't churn the list on every run.
-        author_str = existing_authors.get(_doi_key(p["link"])) or format_authors(p["authors"])
+        author_str = existing_authors.get(_citation_key(p["link"])) or format_authors(p["authors"])
         parts = [f"{i}. {author_str}"]
-        parts.append(f'"{p["title"]}."')
+        parts.append(f'"{p["title"].rstrip(". ")}."')
         if p["venue"]:
             parts.append(f'*{p["venue"]}*')
         if p["year"]:
