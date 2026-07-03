@@ -120,13 +120,44 @@ def fetch_all_citing_papers():
             print(f"  Added from OpenCitations: {paper['title']}")
 
     all_papers = list(papers.values())
-    # Sort by publication date descending, then year
+    # Deterministic order: newest first, with title as a stable tiebreaker so
+    # papers sharing a date don't reorder between runs.
     all_papers.sort(
-        key=lambda p: p.get("date") or str(p.get("year", "")),
+        key=lambda p: (p.get("date") or str(p.get("year", "")), p.get("title", "")),
         reverse=True,
     )
     print(f"Total: {len(all_papers)} unique citing paper(s)")
     return all_papers
+
+
+DOI_LINK_RE = re.compile(r"https?://doi\.org/([^)\s]+)", re.IGNORECASE)
+ENTRY_AUTHORS_RE = re.compile(r'^\d+\.\s+(.+?)\s+"')
+
+
+def _doi_key(link):
+    """Return a normalized DOI key from a doi.org link, else the raw link."""
+    match = DOI_LINK_RE.search(link or "")
+    return match.group(1).lower() if match else (link or "")
+
+
+def parse_existing_authors(readme):
+    """Map DOI -> author string already rendered in the README's citation list.
+
+    Semantic Scholar returns author names inconsistently across runs (e.g. full
+    name one week, initials the next). Reusing the author string already committed
+    for a known paper keeps the list stable and preserves manual name fixes; only
+    genuinely new papers pick up freshly fetched names.
+    """
+    existing = {}
+    if SECTION_START not in readme or SECTION_END not in readme:
+        return existing
+    section = readme.split(SECTION_START, 1)[1].split(SECTION_END, 1)[0]
+    for line in section.splitlines():
+        authors = ENTRY_AUTHORS_RE.match(line.strip())
+        link = DOI_LINK_RE.search(line)
+        if authors and link:
+            existing[link.group(1).lower()] = authors.group(1).strip()
+    return existing
 
 
 def format_authors(authors):
@@ -138,14 +169,17 @@ def format_authors(authors):
     return ", ".join(authors[:-1]) + ", and " + authors[-1]
 
 
-def format_citations(papers):
+def format_citations(papers, existing_authors=None):
     """Format papers as a numbered markdown list in academic citation style."""
+    existing_authors = existing_authors or {}
     if not papers:
         return "No citations found yet. Check back soon!\n"
 
     lines = []
     for i, p in enumerate(papers, 1):
-        author_str = format_authors(p["authors"])
+        # Prefer the author string already committed for this paper so flaky
+        # name variants from the API don't churn the list on every run.
+        author_str = existing_authors.get(_doi_key(p["link"])) or format_authors(p["authors"])
         parts = [f"{i}. {author_str}"]
         parts.append(f'"{p["title"]}."')
         if p["venue"]:
@@ -166,7 +200,8 @@ def update_readme(papers):
     """Update the citations section in README.md."""
     readme = README_PATH.read_text()
 
-    citations_md = format_citations(papers)
+    existing_authors = parse_existing_authors(readme)
+    citations_md = format_citations(papers, existing_authors)
     new_section = f"{SECTION_START}\n{citations_md}{SECTION_END}"
 
     if SECTION_START in readme and SECTION_END in readme:
