@@ -117,6 +117,7 @@ Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to
 
 ## Related Projects
 
+- [DeepSpot-M](https://github.com/ratschlab/DeepSpotM) — Multimodal foundation model for transcriptome-wide virtual spatial transcriptomics from H&E images. Represents genes as queryable embeddings, so it spans the protein-coding transcriptome including genes unseen during training.
 - [DeepSpot](https://github.com/ratschlab/DeepSpot) — Predicts spatial transcriptomics from H&E images at spot-level (Visium) and single-cell (Xenium) resolution. Uses AESTETIK for cross-sample integration.
 - [DeepSpot2Cell](https://github.com/ratschlab/DeepSpot2Cell) — Predicts virtual single-cell spatial transcriptomics from H&E images using spot-level supervision.
 
