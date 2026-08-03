@@ -57,8 +57,11 @@ class CustomDataset(Dataset):
         return len(self.dataset)
 
     def _compute_train_idx(self):
+        # pandas 3 backs a string Index with Arrow, and sklearn's _safe_indexing
+        # indexes it as `array[key, ...]`, which an ArrowExtensionArray rejects.
+        # Hand sklearn a plain numpy array of labels instead.
         train_idx, _ = train_test_split(
-            self.adata.obs.index,
+            self.adata.obs.index.to_numpy(),
             train_size=self.train_size,
             random_state=self.random_state,
         )
