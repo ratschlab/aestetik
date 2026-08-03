@@ -20,10 +20,10 @@ authors:
   - given-names: Gunnar
     family-names: Rätsch
 repository-code: https://github.com/ratschlab/aestetik
-url: https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1
+url: https://doi.org/10.1093/bioinformatics/btag316
 license: MIT
-version: 0.1.0
-date-released: "2024-06-04"
+version: 0.3.1
+date-released: "2026-05-29"
 keywords:
   - spatial-transcriptomics
   - autoencoder
@@ -38,8 +38,11 @@ keywords:
   - bioinformatics
 identifiers:
   - type: doi
+    value: 10.1093/bioinformatics/btag316
+    description: Published article in Bioinformatics
+  - type: doi
     value: 10.1101/2024.06.04.24308256
-    description: medRxiv preprint
+    description: Earlier medRxiv preprint
 preferred-citation:
   type: article
   title: "Representation learning for multi-modal spatially resolved transcriptomics data"
@@ -59,7 +62,13 @@ preferred-citation:
       family-names: Koelzer
     - given-names: Gunnar
       family-names: Rätsch
-  doi: 10.1101/2024.06.04.24308256
-  url: https://www.medrxiv.org/content/10.1101/2024.06.04.24308256v1
-  journal: medRxiv
-  year: 2024
+  doi: 10.1093/bioinformatics/btag316
+  url: https://doi.org/10.1093/bioinformatics/btag316
+  journal: Bioinformatics
+  volume: 42
+  issue: 7
+  year: 2026
+  month: 5
+  issn: 1367-4811
+  publisher:
+    name: Oxford University Press
