@@ -51,7 +51,8 @@ def test_refine_cluster_keeps_label_dtype(small_adata):
         n_neighbors=3,
     )
     col = "X_pca_transcriptomics_cluster"
-    assert small_adata.obs[col].dtype == object or small_adata.obs[col].dtype.name == "category"
+    # pandas 2 reports object, pandas 3 reports str; both are label-like.
+    assert small_adata.obs[col].dtype.name in {"object", "category", "str", "string"}
 
 
 def test_leiden_clustering_with_float_resolution(small_adata):
