@@ -13,6 +13,7 @@ The preprint is available [here](https://www.medrxiv.org/content/10.1101/2024.06
 
 ## News
 
+  - [09.2026] Introducing [Aurora](www.auroraomics.org) - a no-code platform for virtual spatial transcriptomics from H&E images. Aurora makes virtual spatial transcriptomics accessible without requiring users to have their own GPUs, with a fully automated workflow designed to ensure that spatial transcriptomics predictions are performed correctly. Try the interactive [Aurora demo](www.auroraomics.org/demo).
   - [06.2026] New generation model [DeepSpot-M: a multimodal foundation model for transcriptome-wide virtual spatial transcriptomics from histology](https://www.medrxiv.org/content/10.64898/2026.06.19.26356060v1). [Code.](https://github.com/ratschlab/DeepSpotM)
   - [05.2026] [Representation learning for multi-modal spatially resolved transcriptomics data](https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/btag316/8692433) has been published in Bioinformatics (Oxford)
   - [03.2026] [Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics](https://www.biorxiv.org/content/10.64898/2026.03.02.709002v1) will be at ICLR 2026 Learning Meaningful Representations of Life 
