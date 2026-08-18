@@ -136,6 +136,18 @@ In case you found our work useful, please consider citing us:
   publisher={Oxford University Press}
 }
 ```
+and
+
+```
+@article{dai2026towards,
+  title={Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics},
+  author={Dai, Justina and Nonchev, Kalin and Koelzer, Viktor H and R{\"a}tsch, Gunnar},
+  journal={bioRxiv},
+  pages={2026--03},
+  year={2026},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
 
 The code for reproducing the paper results can be found [here](https://github.com/ratschlab/st-rep).
 
