@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Probabilistic uncertainty in virtual spatial transcriptomics from histology is largely redundant with the predicted mean",
+    "authors": "Thomas Batique, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch",
+    "venue": "bioRxiv",
+    "year": 2026,
+    "link": "https://doi.org/10.64898/2026.10.23.760875",
+    "date": "2026-10-24"
+  },
+  {
+    "title": "Scalable localization of clustering instability for spatial transcriptomics",
+    "authors": "Wenshan Wu, Joe Truong Nguyen, and Erin K. Molloy",
+    "venue": "bioRxiv",
+    "year": 2026,
+    "link": "https://doi.org/10.64898/2026.10.08.738042",
+    "date": "2026-10-09"
+  },
+  {
+    "title": "Slide-level batch structure limits histology-guided supervision of transcriptomic foundation models",
+    "authors": "Ulysse McConnell, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch",
+    "venue": "bioRxiv",
+    "year": 2026,
+    "link": "https://doi.org/10.64898/2026.09.30.755585",
+    "date": "2026-10-05"
+  },
+  {
+    "title": "Detection of Spatially Aberrant Cells in Spatial Transcriptomics Data by Conformal Prediction",
+    "authors": "Zheng Zhang, Xu-Bin Zheng, Qiu-Yue Yuan, and Rui Luo",
+    "venue": "bioRxiv",
+    "year": 2026,
+    "link": "https://doi.org/10.64898/2026.08.12.744448",
+    "date": "2026-08-14"
+  },
+  {
+    "title": "Transcriptomics-Conditioned Virtual Tissue Synthesis via Diffusion Transformers",
+    "authors": "Pantelis  Rafail Vlachas, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch",
+    "venue": "bioRxiv",
+    "year": 2026,
+    "link": "https://doi.org/10.64898/2026.05.26.727902",
+    "date": "2026-05-29"
+  },
+  {
+    "title": "Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics",
+    "authors": "Justina Dai, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch",
+    "venue": "bioRxiv",
+    "year": 2026,
+    "link": "https://doi.org/10.64898/2026.03.02.709002",
+    "date": "2026-03-03"
+  },
+  {
+    "title": "DeepSpot2Cell: Predicting Virtual Single-Cell Spatial Transcriptomics from H&E images using Spot-Level Supervision",
+    "authors": "Kalin Nonchev, Glib Manaiev, Viktor Hendrik Koelzer, and Gunnar Rätsch",
+    "venue": "bioRxiv",
+    "year": 2025,
+    "link": "https://doi.org/10.1101/2025.09.23.678121",
+    "date": "2025-09-25"
+  },
+  {
+    "title": "Benchmarking computational methods for detecting spatial domains and domain-specific spatially variable genes from spatial transcriptomics data",
+    "authors": "Liping Kang, Qinglong Zhang, F. Qian, Junyao Liang, and Xiaohui Wu",
+    "venue": "Nucleic Acids Research",
+    "year": 2025,
+    "link": "https://doi.org/10.1093/nar/gkaf303",
+    "date": "2025-04-03"
+  },
+  {
+    "title": "DeepSpot: Leveraging Spatial Context for Enhanced Spatial Transcriptomics Prediction from H&E Images",
+    "authors": "Kalin Nonchev, S. Dawo, K. Silina, H. Moch, S. Andani, Tumor Profiler Consortium, V. H. Koelzer, and Gunnar Rätsch",
+    "venue": "medRxiv",
+    "year": 2025,
+    "link": "https://doi.org/10.1101/2025.02.09.25321567",
+    "date": "2025-02-12"
+  }
+]

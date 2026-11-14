@@ -109,11 +109,18 @@ Please take a look at our [example](example/gettingStartedWithAESTETIK.ipynb) to
 ## Papers Citing AESTETIK
 
 <!-- CITATIONS:START -->
-1. Liping Kang, Qinglong Zhang, F. Qian, Junyao Liang, and Xiaohui Wu "Benchmarking computational methods for detecting spatial domains and domain-specific spatially variable genes from spatial transcriptomics data." *Nucleic Acids Research* (2025). [DOI](https://doi.org/10.1093/nar/gkaf303)
-2. Kalin Nonchev, S. Dawo, K. Silina, H. Moch, S. Andani, Tumor Profiler Consortium, V. H. Koelzer, and Gunnar Rätsch "DeepSpot: Leveraging Spatial Context for Enhanced Spatial Transcriptomics Prediction from H&E Images." *medRxiv* (2025). [DOI](https://doi.org/10.1101/2025.02.09.25321567)
+1. Thomas Batique, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch "Probabilistic uncertainty in virtual spatial transcriptomics from histology is largely redundant with the predicted mean." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.10.23.760875)
+2. Wenshan Wu, Joe Truong Nguyen, and Erin K. Molloy "Scalable localization of clustering instability for spatial transcriptomics." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.10.08.738042)
+3. Ulysse McConnell, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch "Slide-level batch structure limits histology-guided supervision of transcriptomic foundation models." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.09.30.755585)
+4. Zheng Zhang, Xu-Bin Zheng, Qiu-Yue Yuan, and Rui Luo "Detection of Spatially Aberrant Cells in Spatial Transcriptomics Data by Conformal Prediction." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.08.12.744448)
+5. Pantelis  Rafail Vlachas, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch "Transcriptomics-Conditioned Virtual Tissue Synthesis via Diffusion Transformers." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.05.26.727902)
+6. Justina Dai, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch "Towards Cross-Sample Alignment for Multi-Modal Representation Learning in Spatial Transcriptomics." *bioRxiv* (2026). [DOI](https://doi.org/10.64898/2026.03.02.709002)
+7. Kalin Nonchev, Glib Manaiev, Viktor Hendrik Koelzer, and Gunnar Rätsch "DeepSpot2Cell: Predicting Virtual Single-Cell Spatial Transcriptomics from H&E images using Spot-Level Supervision." *bioRxiv* (2025). [DOI](https://doi.org/10.1101/2025.09.23.678121)
+8. Liping Kang, Qinglong Zhang, F. Qian, Junyao Liang, and Xiaohui Wu "Benchmarking computational methods for detecting spatial domains and domain-specific spatially variable genes from spatial transcriptomics data." *Nucleic Acids Research* (2025). [DOI](https://doi.org/10.1093/nar/gkaf303)
+9. Kalin Nonchev, S. Dawo, K. Silina, H. Moch, S. Andani, Tumor Profiler Consortium, V. H. Koelzer, and Gunnar Rätsch "DeepSpot: Leveraging Spatial Context for Enhanced Spatial Transcriptomics Prediction from H&E Images." *medRxiv* (2025). [DOI](https://doi.org/10.1101/2025.02.09.25321567)
 <!-- CITATIONS:END -->
 
-*This list is automatically updated weekly via [GitHub Actions](.github/workflows/update-citations.yml) using the [Semantic Scholar](https://www.semanticscholar.org/) and [OpenCitations](https://opencitations.net/) APIs.*
+*This list is automatically updated weekly via [GitHub Actions](.github/workflows/update-citations.yml) using the [Semantic Scholar](https://www.semanticscholar.org/), [OpenAlex](https://openalex.org/) and [OpenCitations](https://opencitations.net/) APIs.*
 
 ## Related Projects
 
