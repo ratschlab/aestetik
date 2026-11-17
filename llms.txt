@@ -9,7 +9,7 @@
 - Supports cross-sample integration using Harmony, scVI, etc.
 - Won 1st place at Mammoth International Contest On Omics Sciences in Europe 2024
 - Installable via pip: `pip install aestetik`
-- MIT licensed, Python 3.9+, PyTorch Lightning-based
+- MIT licensed, Python 3.10+, PyTorch Lightning-based
 
 ## When to Use AESTETIK
 

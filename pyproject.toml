@@ -8,7 +8,7 @@ version = "0.3.1"
 description = "AESTETIK: Convolutional autoencoder for learning spot representations from spatial transcriptomics and morphology data"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.14"
 authors = [
     {name = "Kalin Nonchev"},
 ]
@@ -30,7 +30,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -43,10 +42,7 @@ dependencies = [
     "torch>=2.0",
     "torchvision>=0.15",
     "lightning>=2.0",
-    # spatialdata still references np.float_ on its py3.9-compatible
-    # release line; numpy 2.0 removed it. Cap numpy<2 on py3.9.
-    "numpy>=1.23; python_version>='3.10'",
-    "numpy>=1.23,<2; python_version<'3.10'",
+    "numpy>=1.23",
     "pandas>=1.5",
     "scipy>=1.10",
     "anndata>=0.9",
