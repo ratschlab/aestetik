@@ -1,3 +1,5 @@
+import inspect
+
 import scanpy as sc
 
 
@@ -49,6 +51,12 @@ def preprocess_adata(
     sc.pp.normalize_total(adata, target_sum=normalize_target_sum)
     sc.pp.log1p(adata)
     sc.pp.scale(adata, max_value=10)
-    sc.pp.pca(adata, n_comps=pca_n_comps, use_highly_variable=use_highly_variable)
+    # scanpy >= 1.10 selects PCA genes with mask_var; use_highly_variable was
+    # deprecated there and is gone in recent releases (TypeError on 1.13).
+    if "mask_var" in inspect.signature(sc.pp.pca).parameters:
+        mask_var = "highly_variable" if use_highly_variable else None
+        sc.pp.pca(adata, n_comps=pca_n_comps, mask_var=mask_var)
+    else:
+        sc.pp.pca(adata, n_comps=pca_n_comps, use_highly_variable=use_highly_variable)
 
     return adata
