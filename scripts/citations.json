@@ -1,5 +1,13 @@
 [
   {
+    "title": "MetaSimST: Meta-learned and self-supervised multimodal modeling for cross-slice spatial transcriptomics",
+    "authors": "Xianjun Han, Guangcheng Wei, Zijian Wu, Can Bai, and Renbao Huang",
+    "venue": "Information Sciences",
+    "year": 2026,
+    "link": "https://doi.org/10.1016/j.ins.2026.124459",
+    "date": "2026-11-17"
+  },
+  {
     "title": "Probabilistic uncertainty in virtual spatial transcriptomics from histology is largely redundant with the predicted mean",
     "authors": "Thomas Batique, Kalin Nonchev, Viktor Hendrik Koelzer, and Gunnar Rätsch",
     "venue": "bioRxiv",
@@ -46,6 +54,14 @@
     "year": 2026,
     "link": "https://doi.org/10.64898/2026.03.02.709002",
     "date": "2026-03-03"
+  },
+  {
+    "title": "Predicting spatial transcriptomics from histology images: Progress, challenges, and directions",
+    "authors": "Kexin Xu, Hashem Koohy, and Agne Antanaviciute",
+    "venue": "",
+    "year": 2026,
+    "link": "https://doi.org/10.70401/exo.2026.0020",
+    "date": "2026-01-01"
   },
   {
     "title": "DeepSpot2Cell: Predicting Virtual Single-Cell Spatial Transcriptomics from H&E images using Spot-Level Supervision",
